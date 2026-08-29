@@ -11,29 +11,29 @@ export const Navbar = ({ onToggleSidebar }) => {
   const [showNotifMenu, setShowNotifMenu] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 px-4 lg:px-8 py-3 transition-all">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 transition-all">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
         {/* Left: Mobile Toggle & Brand Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="p-2 -ml-2 text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-xl transition-colors"
+              className="p-1.5 sm:p-2 -ml-1 text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-xl transition-colors shrink-0"
               title="Menu Navigasi"
             >
-              <Menu size={22} />
+              <Menu size={20} className="sm:w-[22px] sm:h-[22px]" />
             </button>
           )}
 
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              <span className="font-extrabold text-lg">🧬</span>
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform shrink-0">
+              <span className="font-extrabold text-base sm:text-lg">🧬</span>
             </div>
-            <div>
-              <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent block leading-tight">
+            <div className="min-w-0">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent block leading-tight truncate">
                 BioProFLiC
               </span>
-              <span className="text-[10px] font-semibold text-slate-400 block tracking-wider uppercase">
+              <span className="hidden sm:block text-[10px] font-semibold text-slate-400 tracking-wider uppercase truncate">
                 SMA Kurikulum Merdeka
               </span>
             </div>
@@ -41,7 +41,7 @@ export const Navbar = ({ onToggleSidebar }) => {
         </div>
 
         {/* Right Actions: Role Switcher & Notifications & User Profile */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Quick Demo Switcher Badge */}
           <div className="relative">
             <button
@@ -49,16 +49,15 @@ export const Navbar = ({ onToggleSidebar }) => {
                 setShowRoleMenu(!showRoleMenu);
                 setShowNotifMenu(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200/60"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200/60"
             >
-              <Sparkles size={13} className="text-emerald-600" />
-              <span className="hidden sm:inline">Role:</span>
+              <Sparkles size={12} className="text-emerald-600 shrink-0" />
               <span className="capitalize">{user?.role === 'teacher' ? 'Guru' : user?.role === 'admin' ? 'Admin' : 'Siswa'}</span>
-              <ChevronDown size={14} />
+              <ChevronDown size={13} className="shrink-0" />
             </button>
 
             {showRoleMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
                 <div className="px-4 py-2 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   Ganti Akun Demo
                 </div>
@@ -68,8 +67,8 @@ export const Navbar = ({ onToggleSidebar }) => {
                     user?.username === 'ahmad' ? 'text-emerald-700 font-bold bg-emerald-50/50' : 'text-slate-700'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Siswa: Ahmad Fauzan (XI IPA 2)
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span className="truncate">Siswa: Ahmad Fauzan (XI IPA 2)</span>
                 </button>
                 <button
                   onClick={() => { switchDemoRole('student_citra'); setShowRoleMenu(false); }}
@@ -77,8 +76,8 @@ export const Navbar = ({ onToggleSidebar }) => {
                     user?.username === 'citra' ? 'text-emerald-700 font-bold bg-emerald-50/50' : 'text-slate-700'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Siswa: Citra Lestari (XI IPA 2)
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span className="truncate">Siswa: Citra Lestari (XI IPA 2)</span>
                 </button>
                 <button
                   onClick={() => { switchDemoRole('teacher'); setShowRoleMenu(false); }}
@@ -86,8 +85,8 @@ export const Navbar = ({ onToggleSidebar }) => {
                     user?.role === 'teacher' ? 'text-emerald-700 font-bold bg-emerald-50/50' : 'text-slate-700'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  Guru: Ibu Maya Sartika, M.Pd.
+                  <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                  <span className="truncate">Guru: Ibu Maya Sartika, M.Pd.</span>
                 </button>
                 <button
                   onClick={() => { switchDemoRole('admin'); setShowRoleMenu(false); }}
@@ -95,8 +94,8 @@ export const Navbar = ({ onToggleSidebar }) => {
                     user?.role === 'admin' ? 'text-emerald-700 font-bold bg-emerald-50/50' : 'text-slate-700'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                  Administrator BioProFLiC
+                  <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                  <span className="truncate">Administrator BioProFLiC</span>
                 </button>
               </div>
             )}
@@ -109,17 +108,17 @@ export const Navbar = ({ onToggleSidebar }) => {
                 setShowNotifMenu(!showNotifMenu);
                 setShowRoleMenu(false);
               }}
-              className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-slate-100 rounded-xl transition-colors relative"
+              className="p-1.5 sm:p-2 text-slate-500 hover:text-emerald-600 hover:bg-slate-100 rounded-xl transition-colors relative"
               title="Notifikasi"
             >
-              <Bell size={20} />
+              <Bell size={18} className="sm:w-5 sm:h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
               )}
             </button>
 
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-100 py-3 z-50 animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-100 py-3 z-50 animate-in fade-in zoom-in-95">
                 <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Notifikasi</span>
                   {unreadCount > 0 && (
@@ -149,11 +148,11 @@ export const Navbar = ({ onToggleSidebar }) => {
           </div>
 
           {/* User Profile Avatar */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+          <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-200">
             <img
               src={user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
               alt={user?.name}
-              className="w-9 h-9 rounded-full object-cover border border-emerald-500/30 shadow-sm"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-emerald-500/30 shadow-sm shrink-0"
             />
             <div className="hidden md:block text-left">
               <span className="text-xs font-bold text-slate-800 block leading-tight line-clamp-1">{user?.name}</span>
@@ -163,10 +162,10 @@ export const Navbar = ({ onToggleSidebar }) => {
             </div>
             <button
               onClick={logout}
-              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-1"
+              className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-0.5"
               title="Keluar"
             >
-              <LogOut size={17} />
+              <LogOut size={16} className="sm:w-[17px] sm:h-[17px]" />
             </button>
           </div>
         </div>
