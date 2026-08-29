@@ -1,64 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DebounceInput } from '../../components/common/DebounceInput';
-import { BookOpen, Tv, FileText, Image as ImageIcon, Download, ExternalLink, Play } from 'lucide-react';
+import { Pagination } from '../../components/common/Pagination';
+import { BookOpen, Tv, FileText, Image as ImageIcon, Download, ExternalLink, Play, Loader2 } from 'lucide-react';
+import { request } from '../../utils/request';
+import { API_ENDPOINTS } from '../../utils/endpoints';
+import toast from 'react-hot-toast';
 
 export const StudentMaterials = () => {
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [activeType, setActiveType] = useState('all');
   const [search, setSearch] = useState('');
 
-  const materials = [
-    {
-      id: 1,
-      title: 'Video Pembelajaran: Aliran Energi & Tingkat Trofik',
-      topic: 'Ekosistem',
-      type: 'video',
-      duration: '12 Menit',
-      url: 'https://www.youtube.com/embed/LNpHB5Ocbps',
-      description: 'Penjelasan transfer energi 10% antar trofik, piramida biomassa, dan rantai makanan.'
-    },
-    {
-      id: 2,
-      title: 'Modul PDF: Struktur Komponen Biotik & Abiotik Ekosistem',
-      topic: 'Ekosistem',
-      type: 'pdf',
-      duration: '18 Halaman',
-      url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      description: 'Kajian interaksi intraspesifik, simbiosis, daya dukung lingkungan, dan suksesi ekologis.'
-    },
-    {
-      id: 3,
-      title: 'Infografis Siklus Biogeokimia (Karbon, Nitrogen & Fosfor)',
-      topic: 'Ekosistem',
-      type: 'image',
-      duration: 'Visual Bagan',
-      url: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800',
-      description: 'Bagan daur materi fiksasi nitrogen, nitrifikasi bakteri, serta siklus fosfat batuan.'
-    },
-    {
-      id: 4,
-      title: 'E-Book PDF: Biologi Sel & Organel Seluler Tumbuhan/Hewan',
-      topic: 'Sel',
-      type: 'pdf',
-      duration: '24 Halaman',
-      url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      description: 'Panduan mikroskopik membran sel, mitokondria, kloroplas, dan retikulum endoplasma.'
-    },
-    {
-      id: 5,
-      title: 'Video Animasi 3D: Replikasi DNA & Sintesis Protein',
-      topic: 'Genetika',
-      type: 'video',
-      duration: '15 Menit',
-      url: 'https://www.youtube.com/embed/LNpHB5Ocbps',
-      description: 'Visualisasi transkripsi mRNA dan translasi kodon asam amino pada ribosom.'
-    }
-  ];
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(12);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const filtered = materials.filter(m => {
-    const matchType = activeType === 'all' || m.type === activeType;
-    const matchSearch = m.title.toLowerCase().includes(search.toLowerCase()) || m.topic.toLowerCase().includes(search.toLowerCase());
-    return matchType && matchSearch;
-  });
+  const fetchMaterials = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await request.get(API_ENDPOINTS.MATERIALS.LIST, {
+        search,
+        type: activeType,
+        page,
+        limit
+      });
+
+      if (res.success) {
+        setMaterials(res.data || []);
+        if (res.pagination) {
+          setTotal(res.pagination.total);
+          setTotalPages(res.pagination.totalPages);
+        }
+      }
+    } catch (err) {
+      toast.error('Gagal memuat materi biologi: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, activeType, page, limit]);
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [fetchMaterials]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -69,13 +54,13 @@ export const StudentMaterials = () => {
             Perpustakaan Digital Materi Biologi
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Kumpulan video interaktif, modul PDF, dan visual infografis untuk pembelajaran mandiri.
+            Kumpulan video interaktif, modul PDF, dan visual infografis untuk pembelajaran mandiri Flipped Learning.
           </p>
         </div>
 
         <DebounceInput
           value={search}
-          onChange={setSearch}
+          onChange={(val) => { setSearch(val); setPage(1); }}
           placeholder="Cari materi biologi..."
           className="w-full sm:w-72"
         />
@@ -84,15 +69,15 @@ export const StudentMaterials = () => {
       {/* Filter Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <button
-          onClick={() => setActiveType('all')}
+          onClick={() => { setActiveType('all'); setPage(1); }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
             activeType === 'all' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
         >
-          Semua Materi ({materials.length})
+          Semua Materi ({total})
         </button>
         <button
-          onClick={() => setActiveType('video')}
+          onClick={() => { setActiveType('video'); setPage(1); }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeType === 'video' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
@@ -100,7 +85,7 @@ export const StudentMaterials = () => {
           <Tv size={14} /> Video Animasi
         </button>
         <button
-          onClick={() => setActiveType('pdf')}
+          onClick={() => { setActiveType('pdf'); setPage(1); }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeType === 'pdf' ? 'bg-rose-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
@@ -108,7 +93,7 @@ export const StudentMaterials = () => {
           <FileText size={14} /> Modul PDF
         </button>
         <button
-          onClick={() => setActiveType('image')}
+          onClick={() => { setActiveType('image'); setPage(1); }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
             activeType === 'image' ? 'bg-amber-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
@@ -118,59 +103,103 @@ export const StudentMaterials = () => {
       </div>
 
       {/* Material Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((mat) => (
-          <div
-            key={mat.id}
-            className="bg-white rounded-3xl border border-slate-150 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                  {mat.topic}
-                </span>
-                <span className="text-[11px] font-bold text-slate-400">{mat.duration}</span>
-              </div>
-
-              <div className="flex items-start gap-3 pt-1">
-                <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs ${
-                    mat.type === 'video'
-                      ? 'bg-blue-600'
-                      : mat.type === 'pdf'
-                      ? 'bg-rose-600'
-                      : 'bg-amber-600'
-                  }`}
-                >
-                  {mat.type === 'video' ? <Play size={20} /> : mat.type === 'pdf' ? <FileText size={20} /> : <ImageIcon size={20} />}
-                </div>
-
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 line-clamp-2 leading-tight">
-                    {mat.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                    {mat.description}
-                  </p>
-                </div>
-              </div>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div key={n} className="bg-white rounded-3xl border border-slate-150 p-6 shadow-sm animate-pulse space-y-3">
+              <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+              <div className="h-6 bg-slate-200 rounded w-3/4"></div>
+              <div className="h-10 bg-slate-100 rounded"></div>
             </div>
-
-            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-emerald-700">● Tersedia Offline PWA</span>
-              <a
-                href={mat.url}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5 border border-slate-200 transition-colors"
-              >
-                <ExternalLink size={13} />
-                <span>Buka Materi</span>
-              </a>
-            </div>
+          ))}
+        </div>
+      ) : materials.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-slate-150 p-12 text-center shadow-sm space-y-3">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-2xl">
+            📚
           </div>
-        ))}
-      </div>
+          <h3 className="font-extrabold text-base text-slate-800">Tidak Ada Materi Ditemukan</h3>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+            {search ? `Tidak ada materi yang sesuai dengan pencarian "${search}".` : 'Belum ada materi pada kategori yang dipilih.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {materials.map((mat) => {
+            const isVideo = mat.type === 'video';
+            const isPdf = mat.type === 'pdf';
+            const isImage = mat.type === 'image';
+            const targetUrl = mat.embed_url || mat.file_url || '#';
+
+            return (
+              <div
+                key={mat.id}
+                className="bg-white rounded-3xl border border-slate-150 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      {mat.project_topic || 'Ekosistem'}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      {mat.duration_minutes ? `${mat.duration_minutes} Menit` : 'Mandiri'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start gap-3 pt-1">
+                    <div
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs ${
+                        isVideo
+                          ? 'bg-blue-600'
+                          : isPdf
+                          ? 'bg-rose-600'
+                          : 'bg-amber-600'
+                      }`}
+                    >
+                      {isVideo ? <Play size={20} /> : isPdf ? <FileText size={20} /> : <ImageIcon size={20} />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-extrabold text-sm text-slate-800 line-clamp-2 leading-tight">
+                        {mat.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                        {mat.content || 'Materi pembelajaran esensial model ProFLiC.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-emerald-700">● Tersedia Online & PWA</span>
+                  <a
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white text-slate-700 font-bold text-xs flex items-center gap-1.5 border border-slate-200 transition-colors"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Buka Materi</span>
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      <Pagination
+        page={page}
+        limit={limit}
+        total={total}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+      />
     </div>
   );
 };

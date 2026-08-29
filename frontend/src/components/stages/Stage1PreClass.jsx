@@ -10,7 +10,7 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
     infographic: false,
   });
 
-  const materials = stage?.materials || [
+  const materials = stage?.materials && stage.materials.length > 0 ? stage.materials : [
     {
       id: 1,
       title: 'Video Pembelajaran: Aliran Energi & Tingkat Trofik',
@@ -37,6 +37,10 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
     }
   ];
 
+  const videoMaterial = materials.find(m => m.type === 'video') || materials[0] || {};
+  const pdfMaterial = materials.find(m => m.type === 'pdf') || materials[1] || {};
+  const imgMaterial = materials.find(m => m.type === 'image') || materials[2] || {};
+
   const handleCheck = (key) => {
     const nextState = { ...checklist, [key]: !checklist[key] };
     setChecklist(nextState);
@@ -44,8 +48,6 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
       toast.success('Checklist pemahaman diperbarui!');
     }
   };
-
-  const allChecked = Object.values(checklist).every(Boolean);
 
   const handleMarkComplete = () => {
     toast.success('Selamat! Anda telah menyelesaikan Sintaks 1: Pre-Class Preparation.');
@@ -79,7 +81,7 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
           }`}
         >
           <PlayCircle size={17} />
-          <span>Video Materi (12 Menit)</span>
+          <span>Video Materi ({videoMaterial.duration_minutes || 15} Menit)</span>
         </button>
         <button
           onClick={() => setActiveTab('pdf')}
@@ -112,7 +114,7 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
             <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
               <iframe
                 className="w-full h-full"
-                src="https://www.youtube.com/embed/LNpHB5Ocbps"
+                src={videoMaterial.embed_url || "https://www.youtube.com/embed/LNpHB5Ocbps"}
                 title="Video Pembelajaran Biologi"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -120,10 +122,10 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
             </div>
             <div className="pt-2">
               <h3 className="font-extrabold text-base text-slate-800">
-                Aliran Energi, Rantai Makanan & Jaring-Jaring Kehidupan
+                {videoMaterial.title || 'Aliran Energi, Rantai Makanan & Jaring-Jaring Kehidupan'}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
-                Video ini membahas peranan autotrof produsen, herbivora primer, karnivora sekunder/tersier, serta pengurai (dekomposer & detritivor) dalam menjaga keseimbangan biosfer.
+                {videoMaterial.content || 'Video ini membahas peranan autotrof produsen, herbivora primer, karnivora sekunder/tersier, serta pengurai (dekomposer & detritivor) dalam menjaga keseimbangan biosfer.'}
               </p>
             </div>
           </div>
@@ -138,13 +140,13 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
                 </div>
                 <div>
                   <h4 className="text-sm sm:text-base font-bold text-slate-800">
-                    Modul Pegangan Siswa: Ekologi & Keseimbangan Lingkungan
+                    {pdfMaterial.title || 'Modul Pegangan Siswa: Ekologi & Keseimbangan Lingkungan'}
                   </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">Format PDF • 18 Halaman • Disertai Studi Kasus</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Format PDF • Disertai Studi Kasus & Fakta Ilmiah</p>
                 </div>
               </div>
               <a
-                href="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+                href={pdfMaterial.file_url || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"}
                 target="_blank"
                 rel="noreferrer"
                 className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-colors shrink-0"
@@ -156,11 +158,9 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
 
             <div className="p-5 bg-blue-50/50 border border-blue-100 rounded-2xl">
               <h5 className="text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">Ringkasan Materi Esensial</h5>
-              <ul className="text-xs text-slate-700 space-y-1.5 list-disc list-inside leading-relaxed">
-                <li>Komponen Biotik meliputi Produsen (Autotrof), Konsumen (Heterotrof), dan Dekomposer (Saprofit).</li>
-                <li>Komponen Abiotik meliputi Suhu, Cahaya Matahari, Air, Derajat Keasaman (pH), dan Oksigen Terlarut (DO).</li>
-                <li>Daya lenting lingkungan adalah kemampuan ekosistem untuk pulih kembali menuju kondisi seimbang setelah mengalami gangguan.</li>
-              </ul>
+              <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {pdfMaterial.content || 'Komponen Biotik meliputi Produsen (Autotrof), Konsumen (Heterotrof), dan Dekomposer (Saprofit). Komponen Abiotik meliputi Suhu, Cahaya Matahari, Air, Derajat Keasaman (pH), dan Oksigen Terlarut (DO).'}
+              </p>
             </div>
           </div>
         )}
@@ -169,14 +169,14 @@ export const Stage1PreClass = ({ stage, onComplete }) => {
           <div className="space-y-4">
             <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm max-h-96">
               <img
-                src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1000"
-                alt="Infografis Siklus Biogeokimia"
+                src={imgMaterial.file_url || "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1000"}
+                alt={imgMaterial.title || "Infografis Siklus Biogeokimia"}
                 className="w-full h-full object-cover"
               />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-slate-800">Infografis Interaktif: Daur Nitrogen & Fosfor</h4>
-              <p className="text-xs text-slate-500 mt-0.5">Amati bagaimana siklus unsur hara berpindah dari tanah/air ke tubuh makhluk hidup lalu kembali ke alam.</p>
+              <h4 className="font-bold text-sm text-slate-800">{imgMaterial.title || 'Infografis Interaktif: Daur Biogeokimia'}</h4>
+              <p className="text-xs text-slate-500 mt-0.5">{imgMaterial.content || 'Amati bagaimana siklus materi berpindah dari tanah/air ke tubuh makhluk hidup lalu kembali ke alam.'}</p>
             </div>
           </div>
         )}

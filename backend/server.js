@@ -133,10 +133,12 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Query user directly from MySQL
     const [rows] = await pool.query(
-      `SELECT u.*, s.nis, s.class_id, c.name as class_name 
+      `SELECT u.*, s.id as student_id, s.nis, s.class_id, c.name as class_name, sg.id as group_id, sg.name as group_name 
        FROM users u 
        LEFT JOIN students s ON s.user_id = u.id 
        LEFT JOIN classes c ON c.id = s.class_id 
+       LEFT JOIN group_members gm ON gm.student_id = s.id 
+       LEFT JOIN student_groups sg ON sg.id = gm.group_id 
        WHERE u.username = ? OR s.nis = ? LIMIT 1`,
       [username, username]
     );
@@ -177,6 +179,9 @@ app.post('/api/auth/login', async (req, res) => {
         role: user.role,
         avatar: user.avatar,
         nis: user.nis || null,
+        studentId: user.student_id || null,
+        groupId: user.group_id || 1,
+        groupName: user.group_name || 'Kelompok 1 - Fitoplankton',
         classId: user.class_id || (user.role === 'student' ? 1 : null),
         className: user.class_name || 'XI IPA 2'
       }
@@ -446,6 +451,83 @@ app.get('/api/students', async (req, res) => {
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/students/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [rows] = await pool.query(
+      `SELECT s.*, u.id as user_id, u.name, u.username, u.avatar, u.phone, u.status as user_status,
+              c.name as class_name, c.grade, c.school_year,
+              sg.id as group_id, sg.name as group_name, sg.topic_focus
+       FROM students s
+       JOIN users u ON u.id = s.user_id
+       LEFT JOIN classes c ON c.id = s.class_id
+       LEFT JOIN group_members gm ON gm.student_id = s.id
+       LEFT JOIN student_groups sg ON sg.id = gm.group_id
+       WHERE s.id = ? OR s.user_id = ? LIMIT 1`,
+      [id, id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Data siswa tidak ditemukan.' });
+    }
+
+    const student = rows[0];
+
+    // Get quiz attempt for this student
+    const [quizAttempts] = await pool.query(
+      `SELECT sqa.*, q.title as quiz_title, q.passing_score 
+       FROM student_quiz_attempts sqa 
+       JOIN quizzes q ON q.id = sqa.quiz_id 
+       WHERE sqa.student_id = ? ORDER BY sqa.id DESC`,
+      [student.id]
+    );
+
+    // Get presentation feedback / group presentation grade if in group
+    let groupPresentation = null;
+    if (student.group_id) {
+      const [pres] = await pool.query(
+        `SELECT p.*, rs.total_score, rs.mastery_score, rs.problem_analysis_score, rs.solution_innovation_score, rs.presentation_delivery_score, rs.teamwork_score, rs.feedback
+         FROM presentations p
+         LEFT JOIN rubric_scores rs ON rs.presentation_id = p.id
+         WHERE p.group_id = ? LIMIT 1`,
+        [student.group_id]
+      );
+      if (pres.length > 0) {
+        groupPresentation = pres[0];
+      }
+    }
+
+    // Synthesize 5 ProFLiC stage scores
+    const preClassScore = 95;
+    const problemScore = 90;
+    const investigationScore = 92;
+    const presentationScore = groupPresentation?.total_score || 90;
+    const evalScore = quizAttempts.length > 0 ? quizAttempts[0].total_score : 95;
+
+    const finalScore = Number(((preClassScore * 0.15) + (problemScore * 0.20) + (investigationScore * 0.25) + (presentationScore * 0.20) + (evalScore * 0.20)).toFixed(1));
+
+    res.json({
+      success: true,
+      data: {
+        ...student,
+        quizAttempts,
+        groupPresentation,
+        scores: [
+          { stage: '1. Pre-Class Preparation', score: preClassScore, weight: '15%', note: 'Sangat Mandiri' },
+          { stage: '2. Problem Orientation', score: problemScore, weight: '20%', note: 'Analisis Kritis' },
+          { stage: '3. Collaborative Investigation', score: investigationScore, weight: '25%', note: 'Aktif Bekerja Sama' },
+          { stage: '4. Presentation & Discussion', score: presentationScore, weight: '20%', note: 'Penyampaian Runut' },
+          { stage: '5. Reflection & Evaluation', score: evalScore, weight: '20%', note: 'CBT & Refleksi Valid' },
+        ],
+        finalScore,
+        predicate: finalScore >= 90 ? 'A (Sangat Baik)' : finalScore >= 80 ? 'B (Baik)' : 'C (Cukup)'
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -797,6 +879,122 @@ app.post('/api/stages/:id/materials', upload.single('file'), async (req, res) =>
       message: 'Materi berhasil disimpan ke database.',
       data: { id: result.insertId, title, type, file_url }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================================
+// MATERIALS REPOSITORY (CRUD MySQL)
+// ============================================================================
+app.get('/api/materials', async (req, res) => {
+  try {
+    const { search = '', type = '', stageId = '', projectId = '', page = 1, limit = 50 } = req.query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 50;
+    const offset = (pageNum - 1) * limitNum;
+
+    let query = `SELECT sm.*, ls.stage_number, ls.title as stage_title, lp.id as project_id, lp.title as project_title, lp.topic as project_topic
+                 FROM stage_materials sm
+                 LEFT JOIN learning_stages ls ON ls.id = sm.stage_id
+                 LEFT JOIN learning_projects lp ON lp.id = ls.project_id
+                 WHERE 1=1`;
+    const params = [];
+
+    if (type && type !== 'all') {
+      query += ` AND sm.type = ?`;
+      params.push(type);
+    }
+    if (stageId) {
+      query += ` AND sm.stage_id = ?`;
+      params.push(stageId);
+    }
+    if (projectId) {
+      query += ` AND lp.id = ?`;
+      params.push(projectId);
+    }
+    if (search) {
+      query += ` AND (sm.title LIKE ? OR sm.content LIKE ? OR lp.title LIKE ? OR lp.topic LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    const [countResult] = await pool.query(`SELECT COUNT(*) as total FROM (${query}) as countTable`, params);
+    const total = countResult[0].total;
+
+    query += ` ORDER BY sm.id DESC LIMIT ? OFFSET ?`;
+    params.push(limitNum, offset);
+
+    const [rows] = await pool.query(query, params);
+    return sendPaginated(res, rows, total, pageNum, limitNum);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/materials', upload.single('file'), async (req, res) => {
+  try {
+    const { stage_id = 1, title, type = 'pdf', embed_url, content, duration_minutes = 15 } = req.body;
+    if (!title) return res.status(400).json({ success: false, message: 'Judul materi wajib diisi.' });
+
+    const file_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.file_url || null;
+
+    const [result] = await pool.query(
+      `INSERT INTO stage_materials (stage_id, title, type, file_url, embed_url, content, duration_minutes) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [stage_id || 1, title, type, file_url, embed_url || null, content || null, duration_minutes || 15]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Materi pembelajaran berhasil ditambahkan.',
+      data: { id: result.insertId, title, type, file_url, embed_url }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/materials/:id', upload.single('file'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { stage_id, title, type, embed_url, content, duration_minutes } = req.body;
+    const file_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.file_url || null;
+
+    const [existing] = await pool.query(`SELECT * FROM stage_materials WHERE id = ?`, [id]);
+    if (existing.length === 0) return res.status(404).json({ success: false, message: 'Materi tidak ditemukan.' });
+
+    await pool.query(
+      `UPDATE stage_materials SET 
+        stage_id = COALESCE(?, stage_id),
+        title = COALESCE(?, title),
+        type = COALESCE(?, type),
+        file_url = COALESCE(?, file_url),
+        embed_url = COALESCE(?, embed_url),
+        content = COALESCE(?, content),
+        duration_minutes = COALESCE(?, duration_minutes)
+       WHERE id = ?`,
+      [stage_id, title, type, file_url, embed_url, content, duration_minutes, id]
+    );
+
+    res.json({ success: true, message: 'Materi pembelajaran berhasil diperbarui.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/materials/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [rows] = await pool.query(`SELECT file_url FROM stage_materials WHERE id = ?`, [id]);
+    if (rows.length > 0 && rows[0].file_url && rows[0].file_url.startsWith('/uploads-bioproflic/')) {
+      const fileName = path.basename(rows[0].file_url);
+      const filePath = path.join(uploadDir, fileName);
+      if (fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (e) { }
+      }
+    }
+    await pool.query(`DELETE FROM stage_materials WHERE id = ?`, [id]);
+    res.json({ success: true, message: 'Materi pembelajaran berhasil dihapus.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

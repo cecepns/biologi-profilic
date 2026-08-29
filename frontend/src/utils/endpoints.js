@@ -89,6 +89,14 @@ export const API_ENDPOINTS = {
     LIST: "/notifications",
   },
 
+  MATERIALS: {
+    LIST: "/materials",
+    DETAIL: (id) => `/materials/${id}`,
+    CREATE: "/materials",
+    UPDATE: (id) => `/materials/${id}`,
+    DELETE: (id) => `/materials/${id}`,
+  },
+
   ACTIVITY_LOGS: {
     LIST: "/activity-logs",
   },

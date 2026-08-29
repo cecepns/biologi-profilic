@@ -39,12 +39,14 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
   const [lastSaved, setLastSaved] = useState('Tersimpan otomatis');
   const [isSaving, setIsSaving] = useState(false);
 
+  const groupId = user?.groupId || 1;
+
   // Fetch initial group data, discussions, and solution from API
   useEffect(() => {
     const fetchGroupDetails = async () => {
       setLoading(true);
       try {
-        const res = await request.get(API_ENDPOINTS.GROUPS.DETAIL(1));
+        const res = await request.get(API_ENDPOINTS.GROUPS.DETAIL(groupId));
         if (res.success && res.data) {
           setGroupData(res.data);
           if (res.data.members) setMembers(res.data.members);
@@ -72,7 +74,7 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
     };
 
     fetchGroupDetails();
-  }, []);
+  }, [groupId]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,7 +92,7 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
         content: inputMessage.trim()
       };
 
-      const res = await request.post(API_ENDPOINTS.GROUPS.DISCUSSIONS(1), payload);
+      const res = await request.post(API_ENDPOINTS.GROUPS.DISCUSSIONS(groupId), payload);
       if (res.success && res.data) {
         setMessages(prev => [...prev, res.data]);
         setInputMessage('');
@@ -136,7 +138,7 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
   const handleSaveWorkspace = async () => {
     setIsSaving(true);
     try {
-      const res = await request.post(API_ENDPOINTS.GROUPS.SOLUTION(1), {
+      const res = await request.post(API_ENDPOINTS.GROUPS.SOLUTION(groupId), {
         problem_analysis: solutionForm.problemAnalysis,
         facts_identified: solutionForm.factsIdentified,
         inquiry_questions: solutionForm.inquiryQuestions,

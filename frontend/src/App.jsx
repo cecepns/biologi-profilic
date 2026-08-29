@@ -16,6 +16,8 @@ import { StudentProfile } from './pages/student/StudentProfile';
 
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
 import { TeacherProjects } from './pages/teacher/TeacherProjects';
+import { TeacherMaterials } from './pages/teacher/TeacherMaterials';
+import { TeacherDiscussions } from './pages/teacher/TeacherDiscussions';
 import { TeacherClasses } from './pages/teacher/TeacherClasses';
 import { TeacherGradingCenter } from './pages/teacher/TeacherGradingCenter';
 import { TeacherReports } from './pages/teacher/TeacherReports';
@@ -93,6 +95,8 @@ export const App = () => {
           {/* Teacher Routes */}
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
           <Route path="/teacher/projects" element={<TeacherProjects />} />
+          <Route path="/teacher/materials" element={<TeacherMaterials />} />
+          <Route path="/teacher/discussions" element={<TeacherDiscussions />} />
           <Route path="/teacher/classes" element={<TeacherClasses />} />
           <Route path="/teacher/grading" element={<TeacherGradingCenter />} />
           <Route path="/teacher/reports" element={<TeacherReports />} />
@@ -101,6 +105,8 @@ export const App = () => {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/classes" element={<AdminClasses />} />
+          <Route path="/admin/materials" element={<TeacherMaterials />} />
+          <Route path="/admin/discussions" element={<TeacherDiscussions />} />
           <Route path="/admin/logs" element={<AdminAuditLogs />} />
 
           {/* Fallback for any unknown route when logged in */}

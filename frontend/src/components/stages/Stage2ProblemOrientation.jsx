@@ -4,10 +4,16 @@ import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
 import toast from 'react-hot-toast';
 
+import { useAuth } from '../../context/AuthContext';
+
 export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
-  const [problems, setProblems] = useState([]);
+  const { user } = useAuth();
+  const groupId = user?.groupId || 1;
+  const stageId = stage?.id || 2;
+
+  const [problems, setProblems] = useState(stage?.problems && stage.problems.length > 0 ? stage.problems : []);
   const [selectedProblemIndex, setSelectedProblemIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [problemData, setProblemData] = useState({
     identifiedProblem: '',
@@ -23,39 +29,39 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch stage 2 details including problems from server
-        const stageRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(2));
-        if (stageRes?.success && stageRes.data?.problems?.length > 0) {
-          setProblems(stageRes.data.problems);
-        } else {
-          // Fallback initial 3 cases
-          setProblems([
-            {
-              id: 1,
-              title: 'Kasus 1: Fenomena Blooming Alga di Waduk Cirata dan Kematian Ikan Massal',
-              context_story: 'Pada musim kemarau menjelang penghujan, teramati peningkatan drastis populasi eceng gondok dan alga hijau-biru di zona keramba jaring apung. Kadar oksigen terlarut (DO) drop drastis di bawah 2 mg/L pada malam hari, menyebabkan ribuan ikan nila mati lemas. Analisis awal menunjukkan akumulasi pakan fosfat tinggi dan limbah domestik dari hulu sungai.',
-              trigger_question: 'Bagaimana mekanisme biokimia terjadinya penurunan kadar DO akibat blooming alga dan solusi bioremediasi apa yang paling efektif untuk memulihkan kestabilan ekosistem perairan tersebut?',
-              image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
-            },
-            {
-              id: 2,
-              title: 'Kasus 2: Kontaminasi Mikroplastik & Bioakumulasi Logam Berat di Muara Sungai',
-              context_story: 'Sampel jaringan ikan bandeng dan kerang hijau di muara sungai menunjukkan partikel mikroplastik (<5mm) dan konsentrasi logam timbal (Pb) melampaui batas aman konsumsi. Hal ini mengganggu rantai makanan akuatik dan berpotensi memicu disrupsi endokrin pada fauna endemik serta membahayakan kesehatan masyarakat pesisir.',
-              trigger_question: 'Bagaimana mekanisme perpindahan zat pencemar non-biodegradable melalui jaring-jaring makanan (biomagnifikasi) dan strategi filtrasi ekologis apa yang dapat diterapkan di area muara?',
-              image_url: 'https://images.unsplash.com/photo-1618477388954-7852f32655ec?w=800'
-            },
-            {
-              id: 3,
-              title: 'Kasus 3: Kerusakan Mangrove & Ancaman Penurunan Stok Ikan Pesisir',
-              context_story: 'Alih fungsi 45% lahan mangrove menjadi area tambak intensif menyebabkan erosi pantai meningkat dan hilangnya daerah nursery ground alami bagi bibit udang dan kepiting bakau. Keanekaragaman spesies menurun drastis dan kadar salinitas air tanah daratan kian meningkat akibat intrusi air laut.',
-              trigger_question: 'Bagaimana peranan vegetasi mangrove sebagai habitat kunci (keystone ecosystem) dalam siklus hidup fauna akuatik dan desain restorasi mangrove terpadu seperti apa yang mampu memulihkan keanekaragaman hayati?',
-              image_url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800'
-            }
-          ]);
+        if (!stage?.problems || stage.problems.length === 0) {
+          const stageRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(stageId));
+          if (stageRes?.success && stageRes.data?.problems?.length > 0) {
+            setProblems(stageRes.data.problems);
+          } else {
+            setProblems([
+              {
+                id: 1,
+                title: 'Kasus 1: Fenomena Blooming Alga di Waduk Cirata dan Kematian Ikan Massal',
+                context_story: 'Pada musim kemarau menjelang penghujan, teramati peningkatan drastis populasi eceng gondok dan alga hijau-biru di zona keramba jaring apung. Kadar oksigen terlarut (DO) drop drastis di bawah 2 mg/L pada malam hari, menyebabkan ribuan ikan nila mati lemas. Analisis awal menunjukkan akumulasi pakan fosfat tinggi dan limbah domestik dari hulu sungai.',
+                trigger_question: 'Bagaimana mekanisme biokimia terjadinya penurunan kadar DO akibat blooming alga dan solusi bioremediasi apa yang paling efektif untuk memulihkan kestabilan ekosistem perairan tersebut?',
+                image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
+              },
+              {
+                id: 2,
+                title: 'Kasus 2: Kontaminasi Mikroplastik & Bioakumulasi Logam Berat di Muara Sungai',
+                context_story: 'Sampel jaringan ikan bandeng dan kerang hijau di muara sungai menunjukkan partikel mikroplastik (<5mm) dan konsentrasi logam timbal (Pb) melampaui batas aman konsumsi. Hal ini mengganggu rantai makanan akuatik dan berpotensi memicu disrupsi endokrin pada fauna endemik serta membahayakan kesehatan masyarakat pesisir.',
+                trigger_question: 'Bagaimana mekanisme perpindahan zat pencemar non-biodegradable melalui jaring-jaring makanan (biomagnifikasi) dan strategi filtrasi ekologis apa yang dapat diterapkan di area muara?',
+                image_url: 'https://images.unsplash.com/photo-1618477388954-7852f32655ec?w=800'
+              },
+              {
+                id: 3,
+                title: 'Kasus 3: Kerusakan Mangrove & Ancaman Penurunan Stok Ikan Pesisir',
+                context_story: 'Alih fungsi 45% lahan mangrove menjadi area tambak intensif menyebabkan erosi pantai meningkat dan hilangnya daerah nursery ground alami bagi bibit udang dan kepiting bakau. Keanekaragaman spesies menurun drastis dan kadar salinitas air tanah daratan kian meningkat akibat intrusi air laut.',
+                trigger_question: 'Bagaimana peranan vegetasi mangrove sebagai habitat kunci (keystone ecosystem) dalam siklus hidup fauna akuatik dan desain restorasi mangrove terpadu seperti apa yang mampu memulihkan keanekaragaman hayati?',
+                image_url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800'
+              }
+            ]);
+          }
         }
 
         // Fetch existing group solution draft
-        const solRes = await request.get(API_ENDPOINTS.GROUPS.SOLUTION(1));
+        const solRes = await request.get(API_ENDPOINTS.GROUPS.SOLUTION(groupId));
         if (solRes?.success && solRes.data) {
           setProblemData({
             identifiedProblem: solRes.data.problem_analysis || '',
@@ -72,7 +78,7 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
     };
 
     fetchData();
-  }, []);
+  }, [stage, stageId, groupId]);
 
   const handleChange = (field, value) => {
     setProblemData(prev => ({ ...prev, [field]: value }));
@@ -83,7 +89,7 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
     setIsSaving(true);
     try {
       const activeProblem = problems[selectedProblemIndex] || problems[0];
-      const res = await request.post(API_ENDPOINTS.GROUPS.SOLUTION(1), {
+      const res = await request.post(API_ENDPOINTS.GROUPS.SOLUTION(groupId), {
         problem_id: activeProblem?.id || 1,
         problem_analysis: problemData.identifiedProblem,
         facts_identified: problemData.facts,

@@ -23,6 +23,8 @@ export const Sidebar = ({ isOpen, onClose }) => {
   const teacherNav = [
     { name: 'Dashboard', to: '/teacher/dashboard', icon: LayoutDashboard },
     { name: 'Pembelajaran ProFLiC', to: '/teacher/projects', icon: BookOpen },
+    { name: 'Materi Pembelajaran', to: '/teacher/materials', icon: Layers },
+    { name: 'Ruang Diskusi', to: '/teacher/discussions', icon: Users },
     { name: 'Manajemen Kelas', to: '/teacher/classes', icon: GraduationCap },
     { name: 'Penilaian & Rubrik', to: '/teacher/grading', icon: Award },
     { name: 'Laporan Pembelajaran', to: '/teacher/reports', icon: BarChart3 },
@@ -31,7 +33,9 @@ export const Sidebar = ({ isOpen, onClose }) => {
   const adminNav = [
     { name: 'Dashboard Admin', to: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Data Pengguna', to: '/admin/users', icon: Users },
-    { name: 'Data Kelas & Mapel', to: '/admin/classes', icon: Layers },
+    { name: 'Data Kelas & Mapel', to: '/admin/classes', icon: GraduationCap },
+    { name: 'Materi Pembelajaran', to: '/admin/materials', icon: Layers },
+    { name: 'Monitoring Diskusi', to: '/admin/discussions', icon: Users },
     { name: 'Audit Log Aktivitas', to: '/admin/logs', icon: History },
   ];
 
