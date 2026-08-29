@@ -1,0 +1,119 @@
+@import 'react-quill-new/dist/quill.snow.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Global explicit form controls styling to fix white/invisible text bugs across all pages */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  select,
+  textarea {
+    @apply bg-white text-slate-900 border border-slate-300 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500;
+  }
+
+  /* Select dropdown styling */
+  select {
+    @apply bg-white text-slate-900;
+  }
+}
+
+/* Custom Quill Rich Text Editor styling */
+.ql-toolbar.ql-snow {
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  border-color: #cbd5e1 !important;
+  background-color: #f8fafc;
+}
+
+.ql-container.ql-snow {
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+  border-color: #cbd5e1 !important;
+  font-family: inherit;
+  background-color: #ffffff;
+}
+
+.ql-editor {
+  min-height: 140px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #0f172a;
+}
+
+.ql-editor.ql-blank::before {
+  color: #94a3b8;
+  font-style: normal;
+}
+
+.ql-editor img {
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  max-width: 100%;
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ProFLiC Stage Gradients & Accents */
+.stage-gradient-1 {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+.stage-gradient-2 {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+}
+.stage-gradient-3 {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+.stage-gradient-4 {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+.stage-gradient-5 {
+  background: linear-gradient(135deg, #0f8b8d 0%, #0d7375 100%);
+}
+
+.stage-border-1 { border-color: #2563eb; }
+.stage-border-2 { border-color: #16a34a; }
+.stage-border-3 { border-color: #f59e0b; }
+.stage-border-4 { border-color: #7c3aed; }
+.stage-border-5 { border-color: #0f8b8d; }
+
+.stage-text-1 { color: #2563eb; }
+.stage-text-2 { color: #16a34a; }
+.stage-text-3 { color: #f59e0b; }
+.stage-text-4 { color: #7c3aed; }
+.stage-text-5 { color: #0f8b8d; }
+
+.stage-bg-1 { background-color: #eff6ff; }
+.stage-bg-2 { background-color: #f0fdf4; }
+.stage-bg-3 { background-color: #fffbeb; }
+.stage-bg-4 { background-color: #faf5ff; }
+.stage-bg-5 { background-color: #f0fdfa; }
+
+/* Pulse animation for live online presence */
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 3s infinite ease-in-out;
+}
+

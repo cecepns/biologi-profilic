@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bioGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#bioGrad)" />
+  <path d="M50 20 C35 35, 30 65, 50 80 C70 65, 65 35, 50 20 Z" fill="#ffffff" opacity="0.9" />
+  <path d="M50 28 L50 72" stroke="#16a34a" stroke-width="3" stroke-linecap="round" />
+  <path d="M50 40 Q60 36, 62 44" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  <path d="M50 52 Q40 48, 38 56" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  <path d="M50 62 Q60 58, 62 66" stroke="#16a34a" stroke-width="2.5" fill="none" stroke-linecap="round" />
+</svg>
