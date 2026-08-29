@@ -30,7 +30,8 @@ import {
   Lock,
   Unlock,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  ClipboardCheck
 } from 'lucide-react';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
@@ -60,6 +61,24 @@ export const TeacherProjects = () => {
   const [managingStagesProject, setManagingStagesProject] = useState(null);
   const [stagesList, setStagesList] = useState([]);
   const [loadingStages, setLoadingStages] = useState(false);
+
+  // Problems Management State (Sintaks 2)
+  const [isProblemsModalOpen, setIsProblemsModalOpen] = useState(false);
+  const [managingProblemsProject, setManagingProblemsProject] = useState(null);
+  const [problemsStageId, setProblemsStageId] = useState(null);
+  const [problemsList, setProblemsList] = useState([]);
+  const [loadingProblems, setLoadingProblems] = useState(false);
+  const [isProblemFormModalOpen, setIsProblemFormModalOpen] = useState(false);
+  const [editingProblem, setEditingProblem] = useState(null);
+  const [deleteProblemTarget, setDeleteProblemTarget] = useState(null);
+  const [uploadingProblemImage, setUploadingProblemImage] = useState(false);
+
+  const [problemForm, setProblemForm] = useState({
+    title: '',
+    context_story: '',
+    trigger_question: '',
+    image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
+  });
 
   // Quiz Management State
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
@@ -401,6 +420,128 @@ export const TeacherProjects = () => {
   };
 
   // =========================================================================
+  // SINTAKS 2: PROBLEM ORIENTATION (KASUS MASALAH PBL) MANAGEMENT
+  // =========================================================================
+  const handleOpenProblems = async (proj, specificStageId = null) => {
+    setManagingProblemsProject(proj);
+    setIsProblemsModalOpen(true);
+    setLoadingProblems(true);
+    try {
+      let stage2Id = specificStageId;
+      if (!stage2Id) {
+        const stagesRes = await request.get(API_ENDPOINTS.PROJECTS.STAGES(proj.id));
+        if (stagesRes?.success && stagesRes.data) {
+          const s2 = stagesRes.data.find(s => s.stage_number === 2);
+          stage2Id = s2?.id || 2;
+        } else {
+          stage2Id = 2;
+        }
+      }
+      setProblemsStageId(stage2Id);
+
+      const stageDetailRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(stage2Id));
+      if (stageDetailRes?.success && stageDetailRes.data?.problems) {
+        setProblemsList(stageDetailRes.data.problems);
+      }
+    } catch (err) {
+      console.error('Fetch problems error:', err);
+    } finally {
+      setLoadingProblems(false);
+    }
+  };
+
+  const handleOpenAddProblem = () => {
+    setEditingProblem(null);
+    setProblemForm({
+      title: '',
+      context_story: '',
+      trigger_question: '',
+      image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
+    });
+    setIsProblemFormModalOpen(true);
+  };
+
+  const handleOpenEditProblem = (prob) => {
+    setEditingProblem(prob);
+    setProblemForm({
+      title: prob.title || '',
+      context_story: prob.context_story || '',
+      trigger_question: prob.trigger_question || '',
+      image_url: prob.image_url || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
+    });
+    setIsProblemFormModalOpen(true);
+  };
+
+  const handleProblemImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingProblemImage(true);
+    try {
+      const res = await request.uploadFile(API_ENDPOINTS.UPLOAD, file);
+      if (res.success) {
+        setProblemForm(prev => ({ ...prev, image_url: res.fileUrl }));
+        toast.success('Gambar kasus berhasil diunggah!');
+      }
+    } catch (err) {
+      toast.error('Gagal mengunggah gambar: ' + err.message);
+    } finally {
+      setUploadingProblemImage(false);
+    }
+  };
+
+  const handleSaveProblem = async (e) => {
+    e.preventDefault();
+    if (!problemForm.title || !problemForm.context_story || !problemForm.trigger_question) {
+      toast.error('Judul kasus, cerita fenomena, dan pertanyaan pemantik wajib diisi!');
+      return;
+    }
+
+    try {
+      if (editingProblem) {
+        const res = await request.put(API_ENDPOINTS.PROBLEMS.UPDATE(editingProblem.id), problemForm);
+        if (res.success) {
+          toast.success('Kasus masalah PBL berhasil diperbarui!');
+          setIsProblemFormModalOpen(false);
+          if (problemsStageId) {
+            const detailRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(problemsStageId));
+            if (detailRes?.success && detailRes.data?.problems) {
+              setProblemsList(detailRes.data.problems);
+            }
+          }
+        }
+      } else {
+        const res = await request.post(API_ENDPOINTS.PROBLEMS.CREATE(problemsStageId || 2), problemForm);
+        if (res.success) {
+          toast.success('Kasus masalah PBL baru berhasil ditambahkan!');
+          setIsProblemFormModalOpen(false);
+          if (problemsStageId) {
+            const detailRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(problemsStageId));
+            if (detailRes?.success && detailRes.data?.problems) {
+              setProblemsList(detailRes.data.problems);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      toast.error('Gagal menyimpan kasus: ' + err.message);
+    }
+  };
+
+  const handleDeleteProblem = async () => {
+    if (!deleteProblemTarget) return;
+    try {
+      const res = await request.delete(API_ENDPOINTS.PROBLEMS.DELETE(deleteProblemTarget.id));
+      if (res.success) {
+        toast.success('Kasus masalah PBL berhasil dihapus.');
+        setDeleteProblemTarget(null);
+        setProblemsList(prev => prev.filter(p => p.id !== deleteProblemTarget.id));
+      }
+    } catch (err) {
+      toast.error('Gagal menghapus kasus: ' + err.message);
+    }
+  };
+
+  // =========================================================================
   // QUIZ & QUESTIONS MANAGEMENT
   // =========================================================================
   const handleOpenQuiz = async (proj) => {
@@ -679,6 +820,13 @@ export const TeacherProjects = () => {
                           <Layers size={16} />
                         </button>
                         <button
+                          onClick={() => handleOpenProblems(proj)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          title="Kelola Kasus Masalah PBL (Sintaks 2)"
+                        >
+                          <ClipboardCheck size={16} />
+                        </button>
+                        <button
                           onClick={() => handleOpenQuiz(proj)}
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                           title="Kelola Kuis Evaluasi (Stage 5)"
@@ -783,6 +931,38 @@ export const TeacherProjects = () => {
                             {stage.problems_count > 0 && <span>🔬 {stage.problems_count} Kasus PBL</span>}
                             {stage.quiz_id && <span>📝 Kuis Evaluasi CBT</span>}
                           </div>
+
+                          {stage.stage_number === 2 && (
+                            <div className="mt-2.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsStagesModalOpen(false);
+                                  handleOpenProblems(managingStagesProject, stage.id);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <ClipboardCheck size={14} />
+                                <span>Kelola Kasus Masalah PBL (Sintaks 2)</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {stage.stage_number === 5 && (
+                            <div className="mt-2.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsStagesModalOpen(false);
+                                  handleOpenQuiz(managingStagesProject);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <HelpCircle size={14} />
+                                <span>Kelola Soal Kuis CBT (Sintaks 5)</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1660,6 +1840,229 @@ export const TeacherProjects = () => {
         onConfirm={handleDelete}
         title="Hapus Proyek Pembelajaran?"
         message={`Apakah Anda yakin ingin menghapus proyek "${deleteTarget?.title}"? Seluruh data 5 sintaks dan nilai siswa akan dihapus.`}
+      />
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: KELOLA KASUS MASALAH PBL (STAGE 2 PROBLEM ORIENTATION) */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isProblemsModalOpen}
+        onClose={() => setIsProblemsModalOpen(false)}
+        title={`Kelola Kasus Masalah PBL (Sintaks 2): ${managingProblemsProject?.title || ''}`}
+        maxWidth="max-w-4xl"
+      >
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-200">
+            <div className="flex items-start gap-3">
+              <ClipboardCheck className="text-emerald-700 shrink-0 mt-0.5" size={22} />
+              <div>
+                <h4 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider">
+                  Sintaks 2: Problem Orientation (Problem-Based Learning)
+                </h4>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  Daftar kasus kontekstual, fenomena lingkungan nyata, dan pertanyaan pemantik untuk dianalisis oleh siswa.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenAddProblem}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>Tambah Kasus PBL Baru</span>
+            </button>
+          </div>
+
+          {loadingProblems ? (
+            <div className="py-12 text-center text-xs text-slate-400">
+              Memuat kasus masalah PBL...
+            </div>
+          ) : problemsList.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              Belum ada kasus masalah PBL yang dibuat. Klik tombol "Tambah Kasus PBL Baru" di atas.
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+              {problemsList.map((prob, idx) => (
+                <div
+                  key={prob.id || idx}
+                  className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs transition-all space-y-3"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {prob.image_url && (
+                        <img
+                          src={prob.image_url}
+                          alt={prob.title}
+                          className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0"
+                        />
+                      )}
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                          Kasus #{idx + 1}
+                        </span>
+                        <h4 className="font-extrabold text-sm text-slate-900 mt-1">
+                          {prob.title}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditProblem(prob)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        title="Edit Kasus"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteProblemTarget(prob)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Hapus Kasus"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-xs space-y-2 pt-1 border-t border-slate-100">
+                    <div>
+                      <span className="font-bold text-slate-700 block">Cerita Kontekstual / Fenomena:</span>
+                      <p className="text-slate-600 leading-relaxed mt-0.5 whitespace-pre-wrap">
+                        {prob.context_story}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-emerald-800 block">Pertanyaan Pemantik Investigasi:</span>
+                      <p className="text-emerald-700 font-semibold leading-relaxed mt-0.5 italic">
+                        "{prob.trigger_question}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setIsProblemsModalOpen(false)}
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer"
+            >
+              Selesai & Tutup
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: FORM TAMBAH / EDIT KASUS MASALAH PBL */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isProblemFormModalOpen}
+        onClose={() => setIsProblemFormModalOpen(false)}
+        title={editingProblem ? 'Edit Kasus Masalah PBL' : 'Tambah Kasus Masalah PBL Baru'}
+        maxWidth="max-w-2xl"
+      >
+        <form onSubmit={handleSaveProblem} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Judul Kasus Masalah <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={problemForm.title}
+              onChange={(e) => setProblemForm(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Contoh: Kasus 1: Fenomena Blooming Alga di Waduk Cirata"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Cerita Kontekstual / Fenomena Lingkungan <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              required
+              rows="4"
+              value={problemForm.context_story}
+              onChange={(e) => setProblemForm(prev => ({ ...prev, context_story: e.target.value }))}
+              placeholder="Tuliskan latar belakang masalah kontekstual, data pengamatan (misal kadar DO < 2 mg/L), fakta ekosistem yang teramati..."
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            ></textarea>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Pertanyaan Pemantik Investigasi Ilmiah <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              required
+              rows="3"
+              value={problemForm.trigger_question}
+              onChange={(e) => setProblemForm(prev => ({ ...prev, trigger_question: e.target.value }))}
+              placeholder="Contoh: Bagaimana mekanisme biokimia terjadinya penurunan kadar DO akibat blooming alga dan solusi bioremediasi apa yang paling efektif?"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            ></textarea>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700">
+              Gambar / Ilustrasi Kasus
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={problemForm.image_url}
+                onChange={(e) => setProblemForm(prev => ({ ...prev, image_url: e.target.value }))}
+                placeholder="https://images.unsplash.com/..."
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+              <label className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer flex items-center gap-1.5 shrink-0 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProblemImageUpload}
+                  className="hidden"
+                />
+                <Upload size={14} />
+                <span>{uploadingProblemImage ? 'Mengunggah...' : 'Upload'}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsProblemFormModalOpen(false)}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition-colors cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={uploadingProblemImage}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {editingProblem ? 'Simpan Perubahan Kasus' : 'Terbitkan Kasus PBL'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Dialog Konfirmasi Hapus Kasus */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteProblemTarget)}
+        onClose={() => setDeleteProblemTarget(null)}
+        onConfirm={handleDeleteProblem}
+        title="Hapus Kasus Masalah PBL"
+        message={`Apakah Anda yakin ingin menghapus kasus "${deleteProblemTarget?.title}"? Kasus yang dihapus tidak dapat dipulihkan.`}
       />
     </div>
   );

@@ -49,6 +49,12 @@ export const API_ENDPOINTS = {
     ADD_PROBLEM: (stageId) => `/stages/${stageId}/problems`,
   },
 
+  PROBLEMS: {
+    CREATE: (stageId) => `/stages/${stageId}/problems`,
+    UPDATE: (id) => `/problems/${id}`,
+    DELETE: (id) => `/problems/${id}`,
+  },
+
   GROUPS: {
     LIST: "/groups",
     DETAIL: (id) => `/groups/${id}`,

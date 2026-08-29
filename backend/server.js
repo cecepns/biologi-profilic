@@ -884,6 +884,66 @@ app.post('/api/stages/:id/materials', upload.single('file'), async (req, res) =>
   }
 });
 
+app.post('/api/stages/:id/problems', upload.single('file'), async (req, res) => {
+  try {
+    const stageId = parseInt(req.params.id, 10);
+    const { title, context_story, trigger_question } = req.body;
+    if (!title || !context_story || !trigger_question) {
+      return res.status(400).json({ success: false, message: 'Judul, cerita kasus, dan pertanyaan pemantik wajib diisi.' });
+    }
+    const image_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.image_url || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800';
+
+    const [result] = await pool.query(
+      `INSERT INTO stage_problems (stage_id, title, context_story, trigger_question, image_url) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [stageId, title, context_story, trigger_question, image_url]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Kasus masalah PBL berhasil ditambahkan ke Sintaks 2.',
+      data: { id: result.insertId, title, context_story, trigger_question, image_url }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/problems/:id', upload.single('file'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { title, context_story, trigger_question } = req.body;
+    const image_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.image_url || null;
+
+    const [existing] = await pool.query(`SELECT * FROM stage_problems WHERE id = ?`, [id]);
+    if (existing.length === 0) return res.status(404).json({ success: false, message: 'Kasus masalah tidak ditemukan.' });
+
+    await pool.query(
+      `UPDATE stage_problems SET 
+        title = COALESCE(?, title),
+        context_story = COALESCE(?, context_story),
+        trigger_question = COALESCE(?, trigger_question),
+        image_url = COALESCE(?, image_url)
+       WHERE id = ?`,
+      [title, context_story, trigger_question, image_url, id]
+    );
+
+    res.json({ success: true, message: 'Kasus masalah PBL berhasil diperbarui.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/problems/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    await pool.query(`DELETE FROM stage_problems WHERE id = ?`, [id]);
+    res.json({ success: true, message: 'Kasus masalah PBL berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ============================================================================
 // MATERIALS REPOSITORY (CRUD MySQL)
 // ============================================================================

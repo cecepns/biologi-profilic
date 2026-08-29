@@ -33,11 +33,12 @@ const AuthenticatedLayout = ({ user }) => {
   const role = user?.role || 'student';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
-      {/* Desktop Sidebar */}
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Desktop Sidebar (Fixed) */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0 overflow-x-hidden">
+      {/* Main Content Area Offset by Sidebar on Desktop */}
+      <div className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0 lg:pl-64">
         {/* Sticky Top Navbar */}
         <Navbar onToggleSidebar={() => setSidebarOpen(true)} />
 

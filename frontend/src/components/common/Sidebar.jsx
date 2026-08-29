@@ -61,7 +61,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Sidebar Panel */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 bg-white border-r border-slate-100 flex flex-col justify-between py-6 px-4 transition-transform duration-200 ease-in-out ${
+        className={`fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r border-slate-100 flex flex-col justify-between py-6 px-4 transition-transform duration-200 ease-in-out overflow-y-auto ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
