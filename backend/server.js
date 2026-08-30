@@ -1707,18 +1707,38 @@ app.post('/api/presentations/:id/feedbacks', async (req, res) => {
 
 // ============================================================================
 // 9. REFLECTIONS & CBT QUIZZES (CRUD MySQL)
-// ============================================================================
 app.get('/api/reflections', async (req, res) => {
   try {
-    const { groupId } = req.query;
+    const { groupId, stageId } = req.query;
     let query = `SELECT * FROM group_reflections`;
     const params = [];
+    const conditions = [];
     if (groupId) {
-      query += ` WHERE group_id = ?`;
+      conditions.push('group_id = ?');
       params.push(groupId);
     }
+    if (stageId) {
+      conditions.push('stage_id = ?');
+      params.push(stageId);
+    }
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+    query += ` ORDER BY id DESC`;
+
     const [rows] = await pool.query(query, params);
-    res.json({ success: true, data: rows });
+    const data = rows.map(r => {
+      let responses = [];
+      if (r.responses) {
+        try {
+          const parsed = typeof r.responses === 'string' ? JSON.parse(r.responses) : r.responses;
+          if (Array.isArray(parsed)) responses = parsed;
+        } catch { }
+      }
+      return { ...r, responses };
+    });
+
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -1726,11 +1746,38 @@ app.get('/api/reflections', async (req, res) => {
 
 app.post('/api/reflections', async (req, res) => {
   try {
-    const { stage_id = 5, group_id = 1, key_learnings, challenges_faced, member_contributions, future_improvements } = req.body;
+    const { 
+      stage_id = 5, 
+      group_id = 1, 
+      key_learnings, 
+      challenges_faced, 
+      member_contributions, 
+      future_improvements,
+      responses 
+    } = req.body;
+
+    const respString = responses ? (typeof responses === 'object' ? JSON.stringify(responses) : responses) : null;
+
+    // Check if reflection exists for this group and stage
+    const [existing] = await pool.query(
+      `SELECT id FROM group_reflections WHERE group_id = ? AND stage_id = ? ORDER BY id DESC LIMIT 1`,
+      [group_id, stage_id]
+    );
+
+    if (existing.length > 0) {
+      await pool.query(
+        `UPDATE group_reflections 
+         SET key_learnings = ?, challenges_faced = ?, member_contributions = ?, future_improvements = ?, responses = ?, submitted_at = NOW()
+         WHERE id = ?`,
+        [key_learnings || null, challenges_faced || null, member_contributions || null, future_improvements || null, respString, existing[0].id]
+      );
+      return res.json({ success: true, message: 'Refleksi kelompok berhasil diperbarui ke database.', id: existing[0].id });
+    }
+
     const [result] = await pool.query(
-      `INSERT INTO group_reflections (stage_id, group_id, key_learnings, challenges_faced, member_contributions, future_improvements) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [stage_id, group_id, key_learnings, challenges_faced, member_contributions, future_improvements]
+      `INSERT INTO group_reflections (stage_id, group_id, key_learnings, challenges_faced, member_contributions, future_improvements, responses) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [stage_id, group_id, key_learnings || null, challenges_faced || null, member_contributions || null, future_improvements || null, respString]
     );
     res.status(201).json({ success: true, message: 'Refleksi kelompok berhasil disimpan ke database.', id: result.insertId });
   } catch (error) {

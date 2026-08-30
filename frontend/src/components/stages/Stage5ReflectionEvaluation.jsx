@@ -10,15 +10,19 @@ export const Stage5ReflectionEvaluation = ({ stage }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('reflection');
   const [loading, setLoading] = useState(true);
+  const [stageDetails, setStageDetails] = useState(stage || null);
 
-  // Group Reflection state - starts clean / from API
-  const [reflection, setReflection] = useState({
-    keyLearnings: '',
-    challengesFaced: '',
-    memberContributions: '',
-    futureImprovements: ''
-  });
+  const defaultQuestions = [
+    'Apa hal paling esensial dan baru yang kalian pelajari dari proyek ini?',
+    'Kesulitan/hambatan apa yang dihadapi selama proses investigasi dan bagaimana solusinya?',
+    'Bagaimana kontribusi dan pembagian peran setiap anggota kelompok?',
+    'Apa yang akan kelompok lakukan secara berbeda untuk meningkatkan kualitas proyek berikutnya?'
+  ];
+
+  // Dynamic reflection answers indexed by question index
+  const [reflectionAnswers, setReflectionAnswers] = useState({});
   const [reflectionSaved, setReflectionSaved] = useState(false);
+  const [savingReflection, setSavingReflection] = useState(false);
 
   // CBT Quiz Questions from API
   const [quiz, setQuiz] = useState(null);
@@ -27,11 +31,23 @@ export const Stage5ReflectionEvaluation = ({ stage }) => {
   const [quizResult, setQuizResult] = useState(null);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
 
-  // Fetch quiz and reflection data from API on mount
+  const activeQuestions = (stageDetails?.questions && stageDetails.questions.length > 0)
+    ? stageDetails.questions
+    : defaultQuestions;
+
+  // Fetch stage details, quiz, and reflection data from API on mount
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Fetch Stage details for custom questions & instructions
+        if (stage?.id) {
+          const sRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(stage.id));
+          if (sRes.success && sRes.data) {
+            setStageDetails(sRes.data);
+          }
+        }
+
         // Fetch Quiz from backend
         const quizRes = await request.get(API_ENDPOINTS.ASSESSMENTS.QUIZ_DETAIL(1));
         if (quizRes.success && quizRes.data) {
@@ -39,15 +55,24 @@ export const Stage5ReflectionEvaluation = ({ stage }) => {
         }
 
         // Fetch existing reflection if any
-        const refRes = await request.get(API_ENDPOINTS.REFLECTIONS.LIST, { groupId: 1 });
+        const refRes = await request.get(API_ENDPOINTS.REFLECTIONS.LIST, { 
+          groupId: user?.groupId || 1,
+          stageId: stage?.id || 5
+        });
         if (refRes.success && refRes.data && refRes.data.length > 0) {
           const latest = refRes.data[0];
-          setReflection({
-            keyLearnings: latest.key_learnings || '',
-            challengesFaced: latest.challenges_faced || '',
-            memberContributions: latest.member_contributions || '',
-            futureImprovements: latest.future_improvements || ''
-          });
+          const loadedAnswers = {};
+          if (latest.responses && Array.isArray(latest.responses) && latest.responses.length > 0) {
+            latest.responses.forEach((item, idx) => {
+              loadedAnswers[idx] = item.answer || '';
+            });
+          } else {
+            if (latest.key_learnings) loadedAnswers[0] = latest.key_learnings;
+            if (latest.challenges_faced) loadedAnswers[1] = latest.challenges_faced;
+            if (latest.member_contributions) loadedAnswers[2] = latest.member_contributions;
+            if (latest.future_improvements) loadedAnswers[3] = latest.future_improvements;
+          }
+          setReflectionAnswers(loadedAnswers);
           setReflectionSaved(true);
         }
 
@@ -72,25 +97,34 @@ export const Stage5ReflectionEvaluation = ({ stage }) => {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, stage?.id]);
 
   const handleSaveReflection = async (e) => {
     e.preventDefault();
+    setSavingReflection(true);
     try {
+      const responses = activeQuestions.map((q, idx) => ({
+        question: q,
+        answer: reflectionAnswers[idx] || ''
+      }));
+
       const res = await request.post(API_ENDPOINTS.REFLECTIONS.CREATE, {
-        stage_id: 5,
-        group_id: 1,
-        key_learnings: reflection.keyLearnings,
-        challenges_faced: reflection.challengesFaced,
-        member_contributions: reflection.memberContributions,
-        future_improvements: reflection.futureImprovements
+        stage_id: stage?.id || 5,
+        group_id: user?.groupId || 1,
+        key_learnings: reflectionAnswers[0] || '',
+        challenges_faced: reflectionAnswers[1] || '',
+        member_contributions: reflectionAnswers[2] || '',
+        future_improvements: reflectionAnswers[3] || '',
+        responses
       });
       if (res.success) {
         setReflectionSaved(true);
-        toast.success('Refleksi kelompok berhasil disimpan ke server!');
+        toast.success('Refleksi kelompok berhasil disimpan ke database!');
       }
     } catch (err) {
       toast.error('Gagal menyimpan refleksi: ' + err.message);
+    } finally {
+      setSavingReflection(false);
     }
   };
 
@@ -191,61 +225,34 @@ export const Stage5ReflectionEvaluation = ({ stage }) => {
       {/* 1. Group Reflection Form */}
       {activeTab === 'reflection' && (
         <form onSubmit={handleSaveReflection} className="bg-white rounded-3xl border border-slate-150 p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="pb-3 border-b border-slate-100">
-            <h3 className="text-base font-extrabold text-slate-800">Lembar Refleksi Metakognitif Kelompok</h3>
-            <p className="text-xs text-slate-400">Jawab 4 pertanyaan refleksi untuk mengevaluasi dinamika kolaborasi kelompok.</p>
+          <div className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-800">Lembar Refleksi Metakognitif Kelompok</h3>
+              <p className="text-xs text-slate-400">
+                {stageDetails?.instructions || `Jawab ${activeQuestions.length} pertanyaan refleksi untuk mengevaluasi dinamika kolaborasi dan pemahaman kelompok.`}
+              </p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full shrink-0">
+              {activeQuestions.length} Poin Pertanyaan
+            </span>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              1. Apa hal paling esensial dan baru yang kalian pelajari dari proyek ini?
-            </label>
-            <textarea
-              rows={3}
-              value={reflection.keyLearnings}
-              onChange={(e) => setReflection(prev => ({ ...prev, keyLearnings: e.target.value }))}
-              className="w-full p-4 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              2. Kesulitan/hambatan apa yang dihadapi selama proses investigasi dan bagaimana solusinya?
-            </label>
-            <textarea
-              rows={3}
-              value={reflection.challengesFaced}
-              onChange={(e) => setReflection(prev => ({ ...prev, challengesFaced: e.target.value }))}
-              className="w-full p-4 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              3. Bagaimana kontribusi dan pembagian peran setiap anggota kelompok?
-            </label>
-            <textarea
-              rows={3}
-              value={reflection.memberContributions}
-              onChange={(e) => setReflection(prev => ({ ...prev, memberContributions: e.target.value }))}
-              className="w-full p-4 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              4. Apa yang akan kelompok lakukan secara berbeda untuk meningkatkan kualitas proyek berikutnya?
-            </label>
-            <textarea
-              rows={3}
-              value={reflection.futureImprovements}
-              onChange={(e) => setReflection(prev => ({ ...prev, futureImprovements: e.target.value }))}
-              className="w-full p-4 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
-              required
-            />
+          <div className="space-y-5">
+            {activeQuestions.map((qText, qIdx) => (
+              <div key={qIdx} className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  {qIdx + 1}. {qText.replace(/^\d+\.\s*/, '')} <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={reflectionAnswers[qIdx] || ''}
+                  onChange={(e) => setReflectionAnswers(prev => ({ ...prev, [qIdx]: e.target.value }))}
+                  placeholder={`Tuliskan refleksi kelompok untuk pertanyaan ke-${qIdx + 1}...`}
+                  className="w-full p-4 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800"
+                />
+              </div>
+            ))}
           </div>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100">
@@ -257,9 +264,11 @@ export const Stage5ReflectionEvaluation = ({ stage }) => {
 
             <button
               type="submit"
-              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[#0F8B8D] hover:bg-teal-700 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-teal-700/20 transition-all"
+              disabled={savingReflection}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[#0F8B8D] hover:bg-teal-700 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-teal-700/20 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Simpan Refleksi Kelompok
+              {savingReflection ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              <span>{savingReflection ? 'Menyimpan...' : 'Simpan Refleksi Kelompok'}</span>
             </button>
           </div>
         </form>

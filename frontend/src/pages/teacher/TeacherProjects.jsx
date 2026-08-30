@@ -504,6 +504,13 @@ export const TeacherProjects = () => {
           'Apakah terdapat potensi dampak samping ekologis atau keterbatasan teknis dari solusi yang dipaparkan kelompok presenter?',
           'Saran perbaikan saintifik dan inovasi tambahan apa yang dapat diterapkan untuk memperkuat solusi kelompok presenter?'
         ];
+      } else if (targetStage.stage_number === 5) {
+        questionsList = [
+          'Apa hal paling esensial dan baru yang kalian pelajari dari proyek ini?',
+          'Kesulitan atau hambatan apa yang dihadapi selama proses investigasi dan bagaimana solusinya?',
+          'Bagaimana kontribusi dan pembagian peran setiap anggota kelompok selama pelaksanaan proyek?',
+          'Apa yang akan kelompok lakukan secara berbeda untuk meningkatkan kualitas investigasi pada proyek berikutnya?'
+        ];
       } else {
         questionsList = [''];
       }
@@ -1076,6 +1083,18 @@ export const TeacherProjects = () => {
                                 type="button"
                                 onClick={() => {
                                   setActiveDropdownId(null);
+                                  handleOpenStageConfig(proj, 5);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <MessageSquare size={15} className="text-teal-600" />
+                                <span>Pertanyaan Refleksi (Sintaks 5)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
                                   handleOpenQuiz(proj);
                                 }}
                                 className="w-full text-left px-3.5 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50 flex items-center gap-2.5 transition-colors cursor-pointer"
@@ -1252,14 +1271,25 @@ export const TeacherProjects = () => {
                           )}
 
                           {stage.stage_number === 5 && (
-                            <div className="mt-2.5">
+                            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsStagesModalOpen(false);
+                                  handleOpenStageConfig(managingStagesProject, stage);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <MessageSquare size={14} />
+                                <span>Kelola Pertanyaan Refleksi (Sintaks 5)</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setIsStagesModalOpen(false);
                                   handleOpenQuiz(managingStagesProject);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-teal-300 hover:bg-teal-50 text-teal-800 font-bold text-xs shadow-2xs transition-colors cursor-pointer"
                               >
                                 <HelpCircle size={14} />
                                 <span>Kelola Soal Kuis CBT (Sintaks 5)</span>
@@ -2445,7 +2475,9 @@ export const TeacherProjects = () => {
         title={
           configuringStage?.stage_number === 3
             ? `Kelola Panduan & Pertanyaan Investigasi (Sintaks 3)`
-            : `Kelola Panduan & Pertanyaan Presentasi (Sintaks 4)`
+            : configuringStage?.stage_number === 4
+              ? `Kelola Panduan & Pertanyaan Presentasi (Sintaks 4)`
+              : `Kelola Pertanyaan Refleksi Metakognitif (Sintaks 5)`
         }
         maxWidth="max-w-3xl"
       >
@@ -2453,23 +2485,31 @@ export const TeacherProjects = () => {
           <div className={`p-4 rounded-2xl border flex items-start gap-3 ${
             configuringStage?.stage_number === 3
               ? 'bg-amber-50 border-amber-200 text-amber-900'
-              : 'bg-purple-50 border-purple-200 text-purple-900'
+              : configuringStage?.stage_number === 4
+                ? 'bg-purple-50 border-purple-200 text-purple-900'
+                : 'bg-teal-50 border-teal-200 text-teal-900'
           }`}>
             {configuringStage?.stage_number === 3 ? (
               <Users className="text-amber-600 shrink-0 mt-0.5" size={20} />
-            ) : (
+            ) : configuringStage?.stage_number === 4 ? (
               <Presentation className="text-purple-600 shrink-0 mt-0.5" size={20} />
+            ) : (
+              <MessageSquare className="text-teal-600 shrink-0 mt-0.5" size={20} />
             )}
             <div>
               <h4 className="text-xs font-extrabold uppercase tracking-wider">
                 {configuringStage?.stage_number === 3
                   ? 'Konfigurasi Lembar Kerja Investigasi Kelompok'
-                  : 'Konfigurasi Panduan Paparan & Forum Diskusi'}
+                  : configuringStage?.stage_number === 4
+                    ? 'Konfigurasi Panduan Paparan & Forum Diskusi'
+                    : 'Konfigurasi Lembar Refleksi Metakognitif Kelompok'}
               </h4>
               <p className="text-xs mt-1 leading-relaxed opacity-90">
                 {configuringStage?.stage_number === 3
                   ? 'Pertanyaan dan panduan di bawah ini akan ditampilkan kepada siswa di Sintaks 3 sebagai acuan utama dalam merumuskan analisis akar masalah dan alternatif solusi biologis.'
-                  : 'Pertanyaan pemantik dan panduan ini akan tampil di Sintaks 4 sebagai pedoman bagi kelompok presenter dan audiens dalam berdiskusi serta menanggapi paparan.'}
+                  : configuringStage?.stage_number === 4
+                    ? 'Pertanyaan pemantik dan panduan ini akan tampil di Sintaks 4 sebagai pedoman bagi kelompok presenter dan audiens dalam berdiskusi serta menanggapi paparan.'
+                    : 'Pertanyaan refleksi di bawah ini akan ditampilkan kepada siswa di Sintaks 5 untuk mengevaluasi proses belajar, dinamika kolaborasi kelompok, dan rencana perbaikan masa depan.'}
               </p>
             </div>
           </div>
@@ -2546,7 +2586,11 @@ export const TeacherProjects = () => {
                   {(stageConfigForm.questions || []).map((q, qIdx) => (
                     <div key={qIdx} className="flex items-start gap-2">
                       <span className={`w-6 h-6 rounded-lg text-white text-xs font-bold flex items-center justify-center shrink-0 mt-1.5 ${
-                        configuringStage?.stage_number === 3 ? 'bg-amber-600' : 'bg-purple-600'
+                        configuringStage?.stage_number === 3 
+                          ? 'bg-amber-600' 
+                          : configuringStage?.stage_number === 4 
+                            ? 'bg-purple-600' 
+                            : 'bg-teal-600'
                       }`}>
                         {qIdx + 1}
                       </span>
@@ -2730,7 +2774,9 @@ export const TeacherProjects = () => {
               className={`px-5 py-2.5 rounded-xl text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50 ${
                 configuringStage?.stage_number === 3
                   ? 'bg-amber-600 hover:bg-amber-700'
-                  : 'bg-purple-600 hover:bg-purple-700'
+                  : configuringStage?.stage_number === 4
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-teal-600 hover:bg-teal-700'
               }`}
             >
               {savingStageConfig ? 'Menyimpan...' : 'Simpan Panduan, Pertanyaan & Rubrik'}

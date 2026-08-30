@@ -26,9 +26,7 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
       {
         id: 1,
         title: 'Alternatif Solusi 1',
-        explanation: '',
-        pros: '',
-        cons: ''
+        explanation: ''
       }
     ],
     chosenSolution: '',
@@ -184,7 +182,7 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
           Collaborative Investigation: Ruang Kerja Kelompok
         </h2>
         <p className="text-xs sm:text-sm text-amber-50 mt-2 max-w-2xl leading-relaxed">
-          Diskusikan hasil temuan bersama tim, formulasikan minimal 2 alternatif solusi biologi terpadu, dan pilih solusi inovatif terbaik kelompok Anda.
+          Diskusikan hasil temuan bersama tim dan formulasikan alternatif solusi biologi terpadu kelompok Anda.
         </p>
       </div>
 
@@ -360,80 +358,40 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
                   <button
                     type="button"
                     onClick={() => handleRemoveAlternative(alt.id)}
-                    className="text-slate-400 hover:text-rose-600 p-1 rounded-md"
+                    className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
                     title="Hapus Alternatif"
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>
 
-                <input
-                  type="text"
-                  value={alt.title}
-                  onChange={(e) => handleUpdateAlternative(alt.id, 'title', e.target.value)}
-                  placeholder="Judul Solusi..."
-                  className="w-full font-bold text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl"
-                />
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Judul / Nama Alternatif Solusi
+                  </label>
+                  <input
+                    type="text"
+                    value={alt.title}
+                    onChange={(e) => handleUpdateAlternative(alt.id, 'title', e.target.value)}
+                    placeholder="Contoh: Bioremediasi Fitoplankton Chlorella..."
+                    className="w-full font-bold text-xs sm:text-sm p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
 
-                <textarea
-                  rows={2}
-                  value={alt.explanation}
-                  onChange={(e) => handleUpdateAlternative(alt.id, 'explanation', e.target.value)}
-                  placeholder="Penjelasan mekanisme kerja solusi..."
-                  className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl"
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <span className="text-[11px] font-bold text-emerald-700 block mb-1">Kelebihan / Pros</span>
-                    <input
-                      type="text"
-                      value={alt.pros}
-                      onChange={(e) => handleUpdateAlternative(alt.id, 'pros', e.target.value)}
-                      placeholder="Kelebihan solusi..."
-                      className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold text-rose-700 block mb-1">Kekurangan / Cons</span>
-                    <input
-                      type="text"
-                      value={alt.cons}
-                      onChange={(e) => handleUpdateAlternative(alt.id, 'cons', e.target.value)}
-                      placeholder="Kekurangan solusi..."
-                      className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Penjelasan & Mekanisme Kerja Solusi Biologis
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={alt.explanation}
+                    onChange={(e) => handleUpdateAlternative(alt.id, 'explanation', e.target.value)}
+                    placeholder="Jelaskan mekanisme kerja biologi, tahapan implementasi, dan dasar ilmiah dari solusi ini..."
+                    className="w-full text-xs sm:text-sm p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-none"
+                  />
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Solusi Terpilih */}
-          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-wider text-amber-900">
-              Solusi Terpilih Kelompok & Alasan Saintifik
-            </label>
-
-            <select
-              value={solutionForm.chosenSolution}
-              onChange={(e) => setSolutionForm(prev => ({ ...prev, chosenSolution: e.target.value }))}
-              className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800"
-            >
-              {solutionForm.alternatives.map((alt) => (
-                <option key={alt.id} value={alt.title}>
-                  {alt.title}
-                </option>
-              ))}
-            </select>
-
-            <textarea
-              rows={3}
-              value={solutionForm.chosenReason}
-              onChange={(e) => setSolutionForm(prev => ({ ...prev, chosenReason: e.target.value }))}
-              placeholder="Mengapa kelompok memilih solusi tersebut sebagai solusi terbaik?..."
-              className="w-full p-3 bg-white border border-amber-200 rounded-xl text-xs sm:text-sm text-slate-800"
-            />
           </div>
 
           {/* Optional File Attachment */}
@@ -446,7 +404,7 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
             <button
               type="button"
               onClick={handleSaveWorkspace}
-              className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all flex items-center gap-2"
+              className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer"
             >
               <CheckCircle2 size={18} />
               <span>Simpan & Lanjut ke Presentation & Discussion</span>
