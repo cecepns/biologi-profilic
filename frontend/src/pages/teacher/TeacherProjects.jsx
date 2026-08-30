@@ -33,7 +33,8 @@ import {
   ChevronRight,
   ClipboardCheck,
   MoreVertical,
-  Presentation
+  Presentation,
+  MessageSquare
 } from 'lucide-react';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
