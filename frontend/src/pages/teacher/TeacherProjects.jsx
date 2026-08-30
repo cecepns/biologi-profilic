@@ -58,6 +58,7 @@ export const TeacherProjects = () => {
   const [detailProject, setDetailProject] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [activeDropdownId, setActiveDropdownId] = useState(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0, popUp: false });
 
   // Stages Management State
   const [isStagesModalOpen, setIsStagesModalOpen] = useState(false);
@@ -80,7 +81,8 @@ export const TeacherProjects = () => {
     title: '',
     context_story: '',
     trigger_question: '',
-    image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
+    image_url: '',
+    questions: ['']
   });
 
   // Quiz Management State
@@ -91,6 +93,7 @@ export const TeacherProjects = () => {
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [deleteQuestionTarget, setDeleteQuestionTarget] = useState(null);
+  const [previewQuizOpen, setPreviewQuizOpen] = useState(false);
 
   const [questionForm, setQuestionForm] = useState({
     type: 'multiple_choice',
@@ -106,19 +109,18 @@ export const TeacherProjects = () => {
     ]
   });
 
-  // Form State
+  const [classes, setClasses] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     topic: '',
     class_id: 1,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    cover: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=600',
-    description: '<p>Tuliskan deskripsi investigasi pembelajaran biologi di sini...</p>',
-    includeMaterial: true,
-    materialType: 'pdf',
+    startDate: '',
+    endDate: '',
+    cover: '',
+    description: '',
     materialTitle: '',
-    materialFileUrl: '',
+    materialType: 'pdf',
+    materialDocUrl: '',
     materialFileName: '',
     materialFileSize: 0,
     youtubeUrl: '',
@@ -151,6 +153,7 @@ export const TeacherProjects = () => {
   const optionQuillModules = useMemo(() => ({
     toolbar: [
       ['bold', 'italic', 'underline'],
+      ['link', 'image'],
       ['clean']
     ]
   }), []);
@@ -163,19 +166,21 @@ export const TeacherProjects = () => {
     'link', 'image'
   ];
 
-  // Fetch projects from backend API
+  // Fetch Projects with debounce search
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
       const res = await request.get(API_ENDPOINTS.PROJECTS.LIST, {
-        search,
         page,
-        limit
+        limit,
+        search
       });
       if (res?.success) {
         setProjects(res.data || []);
-        setTotal(res.pagination?.total || 0);
-        setTotalPages(res.pagination?.totalPages || 1);
+        if (res.pagination) {
+          setTotal(res.pagination.total);
+          setTotalPages(res.pagination.totalPages);
+        }
       }
     } catch (err) {
       console.error('Fetch projects error:', err);
@@ -188,15 +193,22 @@ export const TeacherProjects = () => {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Click outside to close action dropdown
+  // Click & scroll outside to close action dropdown
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.action-dropdown-wrapper')) {
         setActiveDropdownId(null);
       }
     };
+    const handleScroll = () => {
+      setActiveDropdownId(null);
+    };
     document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
   }, []);
 
   // Thumbnail Upload for Creation (Compressed via Compressor.js Max 500KB)
@@ -956,12 +968,24 @@ export const TeacherProjects = () => {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <div className="action-dropdown-wrapper relative inline-block text-left">
+                      <div className="action-dropdown-wrapper inline-block text-left">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveDropdownId(activeDropdownId === proj.id ? null : proj.id);
+                            if (activeDropdownId === proj.id) {
+                              setActiveDropdownId(null);
+                            } else {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              const popUp = spaceBelow < 340;
+                              setDropdownPos({
+                                top: popUp ? rect.top - 6 : rect.bottom + 6,
+                                right: Math.max(16, window.innerWidth - rect.right),
+                                popUp
+                              });
+                              setActiveDropdownId(proj.id);
+                            }
                           }}
                           className={`p-2 rounded-xl border transition-all cursor-pointer ${
                             activeDropdownId === proj.id
@@ -974,7 +998,14 @@ export const TeacherProjects = () => {
                         </button>
 
                         {activeDropdownId === proj.id && (
-                          <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 divide-y divide-slate-100 text-left animate-in fade-in zoom-in-95 duration-100">
+                          <div
+                            style={{
+                              top: `${dropdownPos.top}px`,
+                              right: `${dropdownPos.right}px`,
+                              transform: dropdownPos.popUp ? 'translateY(-100%)' : 'none'
+                            }}
+                            className="fixed w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-[9999] divide-y divide-slate-100 text-left animate-in fade-in zoom-in-95 duration-100"
+                          >
                             <div className="px-3.5 py-2 bg-slate-50/70 border-b border-slate-100">
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aksi Proyek</p>
                               <p className="text-xs font-bold text-slate-800 truncate">{proj.title}</p>
