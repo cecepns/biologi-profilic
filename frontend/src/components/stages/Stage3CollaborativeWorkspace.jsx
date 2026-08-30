@@ -38,8 +38,20 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
 
   const [lastSaved, setLastSaved] = useState('Tersimpan otomatis');
   const [isSaving, setIsSaving] = useState(false);
+  const [stageDetails, setStageDetails] = useState(stage || null);
 
   const groupId = user?.groupId || 1;
+
+  // Fetch stage instructions & questions
+  useEffect(() => {
+    if (stage?.id) {
+      request.get(API_ENDPOINTS.STAGES.DETAIL(stage.id)).then(res => {
+        if (res.success && res.data) {
+          setStageDetails(res.data);
+        }
+      }).catch(err => console.error('Fetch stage detail error:', err));
+    }
+  }, [stage?.id]);
 
   // Fetch initial group data, discussions, and solution from API
   useEffect(() => {
@@ -209,6 +221,43 @@ export const Stage3CollaborativeWorkspace = ({ stage, onComplete }) => {
           ))}
         </div>
       </div>
+
+      {/* Teacher Guidance & Questions Card (Dynamic from Sintaks 3 Configuration) */}
+      {(stageDetails?.instructions || (stageDetails?.questions && stageDetails?.questions.length > 0)) && (
+        <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-white rounded-3xl border border-amber-200/80 p-6 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 text-amber-950 font-extrabold text-sm">
+            <Sparkles className="text-amber-600" size={18} />
+            <span>Petunjuk & Poin Investigasi dari Guru</span>
+          </div>
+
+          {stageDetails?.instructions && (
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+              {stageDetails.instructions}
+            </p>
+          )}
+
+          {stageDetails?.questions && stageDetails.questions.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-amber-200/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 block">
+                Poin Investigasi & Pertanyaan Panduan yang Wajib Dijawab:
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {stageDetails.questions.map((q, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 bg-white/90 rounded-2xl border border-amber-200/80 text-xs text-slate-800 flex items-start gap-2.5 shadow-2xs"
+                  >
+                    <span className="w-5 h-5 rounded-lg bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="font-semibold leading-relaxed">{q}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Grid: Discussion Thread (Left) & Solution Formulation (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -31,7 +31,9 @@ import {
   Unlock,
   AlertCircle,
   ChevronRight,
-  ClipboardCheck
+  ClipboardCheck,
+  MoreVertical,
+  Presentation
 } from 'lucide-react';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
@@ -55,6 +57,7 @@ export const TeacherProjects = () => {
   const [editingProject, setEditingProject] = useState(null);
   const [detailProject, setDetailProject] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [activeDropdownId, setActiveDropdownId] = useState(null);
 
   // Stages Management State
   const [isStagesModalOpen, setIsStagesModalOpen] = useState(false);
@@ -184,6 +187,17 @@ export const TeacherProjects = () => {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Click outside to close action dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-wrapper')) {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Thumbnail Upload for Creation (Compressed via Compressor.js Max 500KB)
   const handleThumbnailUpload = async (e) => {
@@ -416,6 +430,132 @@ export const TeacherProjects = () => {
       }
     } catch (err) {
       toast.error('Gagal memperbarui status tahapan.');
+    }
+  };
+
+  // Stage 3 & 4 Guidelines & Questions Management State
+  const [isStageConfigModalOpen, setIsStageConfigModalOpen] = useState(false);
+  const [configuringStage, setConfiguringStage] = useState(null);
+  const [managingConfigProject, setManagingConfigProject] = useState(null);
+  const [activeConfigTab, setActiveConfigTab] = useState('questions');
+  const [stageConfigForm, setStageConfigForm] = useState({
+    instructions: '',
+    questions: [''],
+    rubric: []
+  });
+  const [savingStageConfig, setSavingStageConfig] = useState(false);
+
+  // =========================================================================
+  // SINTAKS 3 & 4: GUIDELINES, CUSTOM QUESTIONS & RUBRICS CONFIGURATION
+  // =========================================================================
+  const handleOpenStageConfig = async (project, stageOrNumber) => {
+    setManagingConfigProject(project);
+    setActiveConfigTab('questions');
+    let targetStage = null;
+    if (typeof stageOrNumber === 'object' && stageOrNumber !== null) {
+      targetStage = stageOrNumber;
+    } else {
+      try {
+        const res = await request.get(API_ENDPOINTS.PROJECTS.STAGES(project.id));
+        if (res.success && res.data) {
+          targetStage = res.data.find(s => s.stage_number === stageOrNumber) || res.data[0];
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    if (!targetStage) {
+      toast.error('Data tahapan tidak ditemukan.');
+      return;
+    }
+
+    setConfiguringStage(targetStage);
+    let questionsList = [];
+    if (targetStage.questions) {
+      try {
+        const parsed = typeof targetStage.questions === 'string' ? JSON.parse(targetStage.questions) : targetStage.questions;
+        if (Array.isArray(parsed) && parsed.length > 0) questionsList = parsed;
+      } catch { }
+    }
+
+    if (questionsList.length === 0) {
+      if (targetStage.stage_number === 3) {
+        questionsList = [
+          'Analisis mendalam mengapa fenomena permasalahan ekosistem ini terjadi secara biokimia dan ekologi?',
+          'Rumuskan minimal 2 alternatif solusi biologi terpadu beserta analisis kelebihan (pros) dan kekurangan (cons)!',
+          'Tentukan 1 solusi terbaik yang dipilih kelompok serta jelaskan landasan argumen ilmiah dan mekanisme kerjanya!'
+        ];
+      } else if (targetStage.stage_number === 4) {
+        questionsList = [
+          'Bagaimana kesesuaian prinsip biologi dan efektivitas solusi yang diajukan kelompok presenter dalam mengatasi masalah lingkungan?',
+          'Apakah terdapat potensi dampak samping ekologis atau keterbatasan teknis dari solusi yang dipaparkan kelompok presenter?',
+          'Saran perbaikan saintifik dan inovasi tambahan apa yang dapat diterapkan untuk memperkuat solusi kelompok presenter?'
+        ];
+      } else {
+        questionsList = [''];
+      }
+    }
+
+    let rubricList = [];
+    if (targetStage.rubric) {
+      try {
+        const parsed = typeof targetStage.rubric === 'string' ? JSON.parse(targetStage.rubric) : targetStage.rubric;
+        if (Array.isArray(parsed) && parsed.length > 0) rubricList = parsed;
+      } catch { }
+    }
+
+    if (rubricList.length === 0 && targetStage.stage_number === 4) {
+      rubricList = [
+        { id: 1, criteria: 'Penguasaan Materi & Konsep Biologi', weight: 25, description: 'Menjelaskan konsep ekosistem, biogeokimia, dan mekanisme bioremediasi secara akurat tanpa miskonsepsi.' },
+        { id: 2, criteria: 'Analisis Fakta & Data Pendukung Masalah', weight: 20, description: 'Menyajikan data pengamatan lapangan/laboratorium yang valid untuk mendukung identifikasi masalah ekologi.' },
+        { id: 3, criteria: 'Inovasi & Kelayakan Solusi Terpadu', weight: 25, description: 'Solusi yang dirancang orisinal, ramah lingkungan, teruji secara ilmiah, dan memiliki langkah implementasi logis.' },
+        { id: 4, criteria: 'Keterampilan Presentasi & Media Visual', weight: 15, description: 'Slide presentasi sistematis, komunikatif, visual infografis menarik, dan alur bicara jelas serta runtut.' },
+        { id: 5, criteria: 'Responsivitas Diskusi & Tanya Jawab', weight: 15, description: 'Mampu merespons pertanyaan kelompok lain dengan argumen saintifik yang kuat, kritis, dan santun.' }
+      ];
+    }
+
+    setStageConfigForm({
+      instructions: targetStage.instructions || targetStage.description || '',
+      questions: questionsList,
+      rubric: rubricList
+    });
+    setIsStageConfigModalOpen(true);
+  };
+
+  const handleSaveStageConfig = async (e) => {
+    e.preventDefault();
+    if (!configuringStage) return;
+    setSavingStageConfig(true);
+    try {
+      const cleanQuestions = (stageConfigForm.questions || []).map(q => q.trim()).filter(Boolean);
+      const payload = {
+        instructions: stageConfigForm.instructions,
+        questions: cleanQuestions
+      };
+
+      if (configuringStage.stage_number === 4) {
+        payload.rubric = stageConfigForm.rubric || [];
+      }
+
+      const res = await request.put(API_ENDPOINTS.STAGES.UPDATE(configuringStage.id), payload);
+
+      if (res.success) {
+        toast.success(`Panduan, pertanyaan & rubrik Sintaks ${configuringStage.stage_number} berhasil disimpan!`);
+        setIsStageConfigModalOpen(false);
+        if (managingConfigProject) {
+          const detailRes = await request.get(API_ENDPOINTS.PROJECTS.STAGES(managingConfigProject.id));
+          if (detailRes.success && detailRes.data) {
+            setStagesList(detailRes.data);
+          }
+        }
+      } else {
+        toast.error(res.message || 'Gagal menyimpan konfigurasi tahapan.');
+      }
+    } catch (err) {
+      toast.error('Gagal menyimpan: ' + err.message);
+    } finally {
+      setSavingStageConfig(false);
     }
   };
 
@@ -748,8 +888,8 @@ export const TeacherProjects = () => {
       </div>
 
       {/* Projects Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm min-h-[380px]">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
@@ -758,7 +898,7 @@ export const TeacherProjects = () => {
                 <th className="py-3.5 px-3">Tahap Berjalan (5 Sintaks)</th>
                 <th className="py-3.5 px-3">Periode</th>
                 <th className="py-3.5 px-3">Status</th>
-                <th className="py-3.5 px-4 text-right rounded-r-xl">Aksi</th>
+                <th className="py-3.5 px-4 text-center rounded-r-xl w-16">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -815,50 +955,132 @@ export const TeacherProjects = () => {
                         Published
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="action-dropdown-wrapper relative inline-block text-left">
                         <button
-                          onClick={() => setDetailProject(proj)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                          title="Lihat Rincian & Deskripsi"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(activeDropdownId === proj.id ? null : proj.id);
+                          }}
+                          className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                            activeDropdownId === proj.id
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                          }`}
+                          title="Pilihan Aksi"
                         >
-                          <Eye size={16} />
+                          <MoreVertical size={16} />
                         </button>
-                        <button
-                          onClick={() => handleOpenStages(proj)}
-                          className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
-                          title="Kelola 5 Sintaks ProFLiC"
-                        >
-                          <Layers size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleOpenProblems(proj)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                          title="Kelola Kasus Masalah PBL (Sintaks 2)"
-                        >
-                          <ClipboardCheck size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleOpenQuiz(proj)}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                          title="Kelola Kuis Evaluasi (Stage 5)"
-                        >
-                          <HelpCircle size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleOpenEdit(proj)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="Edit Proyek"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(proj)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Hapus Proyek"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+
+                        {activeDropdownId === proj.id && (
+                          <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 divide-y divide-slate-100 text-left animate-in fade-in zoom-in-95 duration-100">
+                            <div className="px-3.5 py-2 bg-slate-50/70 border-b border-slate-100">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aksi Proyek</p>
+                              <p className="text-xs font-bold text-slate-800 truncate">{proj.title}</p>
+                            </div>
+
+                            <div className="py-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setDetailProject(proj);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Eye size={15} className="text-slate-500" />
+                                <span>Lihat Rincian & Deskripsi</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  handleOpenStages(proj);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Layers size={15} className="text-purple-600" />
+                                <span>Kelola 5 Sintaks ProFLiC</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  handleOpenProblems(proj);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <ClipboardCheck size={15} className="text-emerald-600" />
+                                <span>Kasus Masalah (Sintaks 2)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  handleOpenStageConfig(proj, 3);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Users size={15} className="text-amber-600" />
+                                <span>Panduan Investigasi (Sintaks 3)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  handleOpenStageConfig(proj, 4);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Presentation size={15} className="text-purple-600" />
+                                <span>Panduan Presentasi (Sintaks 4)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  handleOpenQuiz(proj);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <HelpCircle size={15} className="text-teal-600" />
+                                <span>Bank Soal Kuis (Sintaks 5)</span>
+                              </button>
+                            </div>
+
+                            <div className="py-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  handleOpenEdit(proj);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Edit2 size={15} className="text-blue-600" />
+                                <span>Edit Informasi Proyek</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setDeleteTarget(proj);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={15} className="text-rose-600" />
+                                <span>Hapus Proyek</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -938,9 +1160,15 @@ export const TeacherProjects = () => {
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 mt-1">{stage.description}</p>
-                          <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-medium">
+                          <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-medium flex-wrap">
                             {stage.materials_count > 0 && <span>📁 {stage.materials_count} Bahan Ajar</span>}
                             {stage.problems_count > 0 && <span>🔬 {stage.problems_count} Kasus PBL</span>}
+                            {stage.stage_number === 3 && stage.questions?.length > 0 && (
+                              <span>📋 {stage.questions.length} Poin Investigasi</span>
+                            )}
+                            {stage.stage_number === 4 && stage.questions?.length > 0 && (
+                              <span>💬 {stage.questions.length} Panduan Diskusi</span>
+                            )}
                             {stage.quiz_id && <span>📝 Kuis Evaluasi CBT</span>}
                           </div>
 
@@ -960,6 +1188,38 @@ export const TeacherProjects = () => {
                             </div>
                           )}
 
+                          {stage.stage_number === 3 && (
+                            <div className="mt-2.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsStagesModalOpen(false);
+                                  handleOpenStageConfig(managingStagesProject, stage);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <Users size={14} />
+                                <span>Kelola Panduan & Pertanyaan Investigasi (Sintaks 3)</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {stage.stage_number === 4 && (
+                            <div className="mt-2.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsStagesModalOpen(false);
+                                  handleOpenStageConfig(managingStagesProject, stage);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <Presentation size={14} />
+                                <span>Kelola Panduan & Pertanyaan Presentasi (Sintaks 4)</span>
+                              </button>
+                            </div>
+                          )}
+
                           {stage.stage_number === 5 && (
                             <div className="mt-2.5">
                               <button
@@ -968,7 +1228,7 @@ export const TeacherProjects = () => {
                                   setIsStagesModalOpen(false);
                                   handleOpenQuiz(managingStagesProject);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
                               >
                                 <HelpCircle size={14} />
                                 <span>Kelola Soal Kuis CBT (Sintaks 5)</span>
@@ -2140,6 +2400,309 @@ export const TeacherProjects = () => {
               className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               {editingProblem ? 'Simpan Perubahan Kasus' : 'Terbitkan Kasus PBL'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: KELOLA PANDUAN & PERTANYAAN SINTAKS 3 & 4 */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isStageConfigModalOpen}
+        onClose={() => setIsStageConfigModalOpen(false)}
+        title={
+          configuringStage?.stage_number === 3
+            ? `Kelola Panduan & Pertanyaan Investigasi (Sintaks 3)`
+            : `Kelola Panduan & Pertanyaan Presentasi (Sintaks 4)`
+        }
+        maxWidth="max-w-3xl"
+      >
+        <form onSubmit={handleSaveStageConfig} className="space-y-5">
+          <div className={`p-4 rounded-2xl border flex items-start gap-3 ${
+            configuringStage?.stage_number === 3
+              ? 'bg-amber-50 border-amber-200 text-amber-900'
+              : 'bg-purple-50 border-purple-200 text-purple-900'
+          }`}>
+            {configuringStage?.stage_number === 3 ? (
+              <Users className="text-amber-600 shrink-0 mt-0.5" size={20} />
+            ) : (
+              <Presentation className="text-purple-600 shrink-0 mt-0.5" size={20} />
+            )}
+            <div>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider">
+                {configuringStage?.stage_number === 3
+                  ? 'Konfigurasi Lembar Kerja Investigasi Kelompok'
+                  : 'Konfigurasi Panduan Paparan & Forum Diskusi'}
+              </h4>
+              <p className="text-xs mt-1 leading-relaxed opacity-90">
+                {configuringStage?.stage_number === 3
+                  ? 'Pertanyaan dan panduan di bawah ini akan ditampilkan kepada siswa di Sintaks 3 sebagai acuan utama dalam merumuskan analisis akar masalah dan alternatif solusi biologis.'
+                  : 'Pertanyaan pemantik dan panduan ini akan tampil di Sintaks 4 sebagai pedoman bagi kelompok presenter dan audiens dalam berdiskusi serta menanggapi paparan.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Tab Switcher for Stage 4 */}
+          {configuringStage?.stage_number === 4 && (
+            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveConfigTab('questions')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeConfigTab === 'questions'
+                    ? 'bg-white text-purple-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Presentation size={14} />
+                <span>1. Panduan & Pertanyaan Pemantik</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveConfigTab('rubric')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeConfigTab === 'rubric'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Award size={14} />
+                <span>2. Rubrik Penilaian Presentasi ({stageConfigForm.rubric?.length || 0} Kriteria)</span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 1: Panduan & Pertanyaan */}
+          {(configuringStage?.stage_number !== 4 || activeConfigTab === 'questions') && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                  Petunjuk / Panduan Guru untuk Siswa <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={stageConfigForm.instructions}
+                  onChange={(e) => setStageConfigForm(prev => ({ ...prev, instructions: e.target.value }))}
+                  placeholder="Tuliskan petunjuk umum atau target capaian yang harus diselesaikan siswa..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Daftar Pertanyaan Panduan Dinamis */}
+              <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Daftar Pertanyaan Panduan / Poin Analisis (Dinamis)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Guru bebas menambahkan, mengubah, atau menghapus pertanyaan panduan untuk siswa.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStageConfigForm(prev => ({ ...prev, questions: [...(prev.questions || []), ''] }))}
+                    className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Plus size={14} />
+                    <span>Tambah Pertanyaan</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  {(stageConfigForm.questions || []).map((q, qIdx) => (
+                    <div key={qIdx} className="flex items-start gap-2">
+                      <span className={`w-6 h-6 rounded-lg text-white text-xs font-bold flex items-center justify-center shrink-0 mt-1.5 ${
+                        configuringStage?.stage_number === 3 ? 'bg-amber-600' : 'bg-purple-600'
+                      }`}>
+                        {qIdx + 1}
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={q}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStageConfigForm(prev => {
+                            const updated = [...(prev.questions || [])];
+                            updated[qIdx] = val;
+                            return { ...prev, questions: updated };
+                          });
+                        }}
+                        placeholder={`Tuliskan pertanyaan / poin panduan ke-${qIdx + 1}...`}
+                        className="flex-1 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      {(stageConfigForm.questions || []).length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStageConfigForm(prev => ({
+                              ...prev,
+                              questions: prev.questions.filter((_, idx) => idx !== qIdx)
+                            }));
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer shrink-0 mt-0.5"
+                          title="Hapus pertanyaan"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: Rubrik Penilaian Presentasi (Khusus Stage 4) */}
+          {configuringStage?.stage_number === 4 && activeConfigTab === 'rubric' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 bg-purple-50/70 border border-purple-200 rounded-2xl">
+                <div>
+                  <h4 className="text-xs font-extrabold text-purple-950 uppercase tracking-wider">
+                    Rubrik Penilaian Presentasi & Diskusi
+                  </h4>
+                  <p className="text-[11px] text-purple-800 mt-0.5">
+                    Siswa akan melihat kriteria dan deskriptor ini sebagai pedoman persiapan presentasi kelompok.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-black px-3 py-1 rounded-xl border ${
+                    (stageConfigForm.rubric || []).reduce((acc, curr) => acc + (Number(curr.weight) || 0), 0) === 100
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border-amber-300'
+                  }`}>
+                    Total Bobot: {(stageConfigForm.rubric || []).reduce((acc, curr) => acc + (Number(curr.weight) || 0), 0)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newId = Date.now();
+                      setStageConfigForm(prev => ({
+                        ...prev,
+                        rubric: [
+                          ...(prev.rubric || []),
+                          {
+                            id: newId,
+                            criteria: `Kriteria Baru ${(prev.rubric || []).length + 1}`,
+                            weight: 10,
+                            description: 'Deskripsi indikator capaian penilaian...'
+                          }
+                        ]
+                      }));
+                    }}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Plus size={13} />
+                    <span>Tambah Kriteria</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                {(stageConfigForm.rubric || []).map((crit, cIdx) => (
+                  <div key={crit.id || cIdx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5 relative group">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="w-6 h-6 rounded-lg bg-purple-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                          {cIdx + 1}
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          value={crit.criteria}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStageConfigForm(prev => ({
+                              ...prev,
+                              rubric: prev.rubric.map((r, i) => i === cIdx ? { ...r, criteria: val } : r)
+                            }));
+                          }}
+                          placeholder="Nama Kriteria Penilaian..."
+                          className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] font-bold text-slate-500">Bobot:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            required
+                            value={crit.weight}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setStageConfigForm(prev => ({
+                                ...prev,
+                                rubric: prev.rubric.map((r, i) => i === cIdx ? { ...r, weight: val } : r)
+                              }));
+                            }}
+                            className="w-16 px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-center text-purple-700 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          />
+                          <span className="text-xs font-bold text-slate-600">%</span>
+                        </div>
+
+                        {(stageConfigForm.rubric || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStageConfigForm(prev => ({
+                                ...prev,
+                                rubric: prev.rubric.filter((_, i) => i !== cIdx)
+                              }));
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Hapus kriteria"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <textarea
+                        rows={2}
+                        value={crit.description}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStageConfigForm(prev => ({
+                            ...prev,
+                            rubric: prev.rubric.map((r, i) => i === cIdx ? { ...r, description: val } : r)
+                          }));
+                        }}
+                        placeholder="Tuliskan deskripsi indikator capaian nilai untuk kriteria ini..."
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsStageConfigModalOpen(false)}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition-colors cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={savingStageConfig}
+              className={`px-5 py-2.5 rounded-xl text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50 ${
+                configuringStage?.stage_number === 3
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-purple-600 hover:bg-purple-700'
+              }`}
+            >
+              {savingStageConfig ? 'Menyimpan...' : 'Simpan Panduan, Pertanyaan & Rubrik'}
             </button>
           </div>
         </form>

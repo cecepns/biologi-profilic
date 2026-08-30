@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
 
   STAGES: {
     DETAIL: (id) => `/stages/${id}`,
+    UPDATE: (id) => `/stages/${id}`,
     UPDATE_STATUS: (id) => `/stages/${id}/status`,
     ADD_MATERIAL: (stageId) => `/stages/${stageId}/materials`,
     ADD_PROBLEM: (stageId) => `/stages/${stageId}/problems`,

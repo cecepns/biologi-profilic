@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Presentation, MessageSquare, Award, Star, ExternalLink, Send, CheckCircle2, UploadCloud, HelpCircle, Loader2, Upload, Edit3, Link, FileText, X } from 'lucide-react';
+import { Presentation, MessageSquare, Award, Star, ExternalLink, Send, CheckCircle2, UploadCloud, HelpCircle, Loader2, Upload, Edit3, Link, FileText, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
@@ -12,6 +12,7 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [uploadingSlide, setUploadingSlide] = useState(false);
+  const [stageDetails, setStageDetails] = useState(stage || null);
   const fileInputRef = useRef(null);
 
   const [presentation, setPresentation] = useState({
@@ -115,6 +116,13 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
 
   useEffect(() => {
     fetchPresentationData();
+    if (stage?.id) {
+      request.get(API_ENDPOINTS.STAGES.DETAIL(stage.id)).then(res => {
+        if (res.success && res.data) {
+          setStageDetails(res.data);
+        }
+      }).catch(err => console.error('Fetch stage 4 detail error:', err));
+    }
   }, [stage, user]);
 
   const handleOpenEditModal = () => {
@@ -239,6 +247,93 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
           Unggah slide presentasi kelompok, simak karya kelompok lain, dan berikan pertanyaan kritis serta tanggapan ilmiah.
         </p>
       </div>
+
+      {/* Teacher Guidance & Discussion Questions Card (Dynamic from Sintaks 4 Configuration) */}
+      {(stageDetails?.instructions || (stageDetails?.questions && stageDetails?.questions.length > 0)) && (
+        <div className="bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-white rounded-3xl border border-purple-200/80 p-6 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 text-purple-950 font-extrabold text-sm">
+            <Sparkles className="text-purple-600" size={18} />
+            <span>Petunjuk & Pertanyaan Pemantik Diskusi Presentasi dari Guru</span>
+          </div>
+
+          {stageDetails?.instructions && (
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+              {stageDetails.instructions}
+            </p>
+          )}
+
+          {stageDetails?.questions && stageDetails.questions.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-purple-200/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-900 block">
+                Pertanyaan Pemantik & Panduan Tanggapan Antar-Kelompok:
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {stageDetails.questions.map((q, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 bg-white/90 rounded-2xl border border-purple-200/80 text-xs text-slate-800 flex items-start gap-2.5 shadow-2xs"
+                  >
+                    <span className="w-5 h-5 rounded-lg bg-purple-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="font-semibold leading-relaxed">{q}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Presentation Assessment Rubric Section (Pedoman Capaian Nilai Siswa) */}
+      {stageDetails?.rubric && stageDetails.rubric.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-purple-100 text-purple-700">
+                <Award size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-800">
+                  Rubrik Penilaian Presentasi & Diskusi
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Pelajari indikator capaian penilaian di bawah ini agar kelompok Anda dapat meraih nilai maksimal.
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full shrink-0">
+              {stageDetails.rubric.length} Kriteria Penilaian
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+            {stageDetails.rubric.map((r, idx) => (
+              <div
+                key={r.id || idx}
+                className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 hover:border-purple-300 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <h4 className="font-extrabold text-xs sm:text-sm text-slate-800 line-clamp-1">
+                      {r.criteria}
+                    </h4>
+                  </div>
+                  <span className="text-xs font-black px-2 py-0.5 rounded-lg bg-purple-100 text-purple-800 shrink-0">
+                    {r.weight}%
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {r.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Presentation Artifact Card */}
       <div className="bg-white rounded-3xl border border-slate-150 p-6 sm:p-8 shadow-sm space-y-6">

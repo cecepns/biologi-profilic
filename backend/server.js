@@ -711,8 +711,26 @@ app.get('/api/projects/:id', async (req, res) => {
     }
 
     const project = projects[0];
-    const [stages] = await pool.query(`SELECT * FROM learning_stages WHERE project_id = ? ORDER BY stage_number ASC`, [id]);
+    const [rawStages] = await pool.query(`SELECT * FROM learning_stages WHERE project_id = ? ORDER BY stage_number ASC`, [id]);
     const [groups] = await pool.query(`SELECT * FROM student_groups WHERE project_id = ?`, [id]);
+
+    const stages = rawStages.map(st => {
+      let questions = [];
+      if (st.questions) {
+        try {
+          const parsed = typeof st.questions === 'string' ? JSON.parse(st.questions) : st.questions;
+          if (Array.isArray(parsed)) questions = parsed;
+        } catch { }
+      }
+      let rubric = [];
+      if (st.rubric) {
+        try {
+          const parsed = typeof st.rubric === 'string' ? JSON.parse(st.rubric) : st.rubric;
+          if (Array.isArray(parsed)) rubric = parsed;
+        } catch { }
+      }
+      return { ...st, questions, rubric };
+    });
 
     res.json({
       success: true,
@@ -941,6 +959,22 @@ app.get('/api/stages/:id', async (req, res) => {
     if (stages.length === 0) return res.status(404).json({ success: false, message: 'Tahapan tidak ditemukan.' });
 
     const stage = stages[0];
+    let stageQuestions = [];
+    if (stage.questions) {
+      try {
+        const parsed = typeof stage.questions === 'string' ? JSON.parse(stage.questions) : stage.questions;
+        if (Array.isArray(parsed)) stageQuestions = parsed;
+      } catch { }
+    }
+
+    let stageRubric = [];
+    if (stage.rubric) {
+      try {
+        const parsed = typeof stage.rubric === 'string' ? JSON.parse(stage.rubric) : stage.rubric;
+        if (Array.isArray(parsed)) stageRubric = parsed;
+      } catch { }
+    }
+
     const [materials] = await pool.query(`SELECT * FROM stage_materials WHERE stage_id = ?`, [id]);
     const [rawProblems] = await pool.query(`SELECT * FROM stage_problems WHERE stage_id = ?`, [id]);
 
@@ -961,10 +995,47 @@ app.get('/api/stages/:id', async (req, res) => {
       success: true,
       data: {
         ...stage,
+        questions: stageQuestions,
+        rubric: stageRubric,
         materials,
         problems
       }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/stages/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { title, description, instructions, questions, rubric, status } = req.body;
+    const [existing] = await pool.query(`SELECT * FROM learning_stages WHERE id = ?`, [id]);
+    if (existing.length === 0) return res.status(404).json({ success: false, message: 'Tahapan tidak ditemukan.' });
+
+    const updateFields = [];
+    const params = [];
+    if (title !== undefined) { updateFields.push('title = ?'); params.push(title); }
+    if (description !== undefined) { updateFields.push('description = ?'); params.push(description); }
+    if (instructions !== undefined) { updateFields.push('instructions = ?'); params.push(instructions); }
+    if (questions !== undefined) {
+      const qString = questions ? (typeof questions === 'object' ? JSON.stringify(questions) : questions) : null;
+      updateFields.push('questions = ?');
+      params.push(qString);
+    }
+    if (rubric !== undefined) {
+      const rString = rubric ? (typeof rubric === 'object' ? JSON.stringify(rubric) : rubric) : null;
+      updateFields.push('rubric = ?');
+      params.push(rString);
+    }
+    if (status !== undefined) { updateFields.push('status = ?'); params.push(status); }
+
+    if (updateFields.length > 0) {
+      params.push(id);
+      await pool.query(`UPDATE learning_stages SET ${updateFields.join(', ')} WHERE id = ?`, params);
+    }
+
+    res.json({ success: true, message: 'Panduan, pertanyaan & rubrik penilaian tahapan berhasil disimpan ke database.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
