@@ -1,9 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Modal } from '../../components/common/Modal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { DebounceInput } from '../../components/common/DebounceInput';
 import { Pagination } from '../../components/common/Pagination';
-import { Users, Plus, Edit2, Trash2, Shield, GraduationCap, CheckCircle2, User, Key, Phone, RefreshCw } from 'lucide-react';
+import { UserAvatar } from '../../components/common/UserAvatar';
+import {
+  Users,
+  Plus,
+  Edit2,
+  Trash2,
+  Shield,
+  GraduationCap,
+  CheckCircle2,
+  User,
+  Key,
+  Phone,
+  RefreshCw,
+  Upload,
+  Camera,
+  ImageOff,
+  X
+} from 'lucide-react';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
 import toast from 'react-hot-toast';
@@ -21,6 +38,10 @@ export const AdminUsers = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const createFileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,7 +49,8 @@ export const AdminUsers = () => {
     role: 'student',
     password: 'password123',
     nis: '',
-    phone: ''
+    phone: '',
+    avatar: ''
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -38,7 +60,8 @@ export const AdminUsers = () => {
     password: '',
     nis: '',
     phone: '',
-    status: 'active'
+    status: 'active',
+    avatar: ''
   });
 
   const fetchUsers = useCallback(async () => {
@@ -66,6 +89,42 @@ export const AdminUsers = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  const handleAvatarFileSelect = async (e, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('File harus berupa format gambar (JPG, PNG, WEBP).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran gambar maksimal 5MB.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const toastId = toast.loading('Mengunggah foto profil...');
+    try {
+      const res = await request.uploadFile(API_ENDPOINTS.UPLOAD, file);
+      if (res?.success && res.fileUrl) {
+        toast.success('Foto profil berhasil diunggah!', { id: toastId });
+        if (isEdit) {
+          setEditFormData(prev => ({ ...prev, avatar: res.fileUrl }));
+        } else {
+          setFormData(prev => ({ ...prev, avatar: res.fileUrl }));
+        }
+      } else {
+        toast.error(res?.message || 'Gagal mengunggah foto profil.', { id: toastId });
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengunggah foto profil.', { id: toastId });
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
@@ -75,12 +134,13 @@ export const AdminUsers = () => {
         role: formData.role,
         password: formData.password || 'password123',
         nis: formData.nis,
-        phone: formData.phone
+        phone: formData.phone,
+        avatar: formData.avatar || null
       });
       if (res?.success) {
         toast.success(`Pengguna ${formData.name} berhasil didaftarkan!`);
         setIsModalOpen(false);
-        setFormData({ name: '', username: '', role: 'student', password: 'password123', nis: '', phone: '' });
+        setFormData({ name: '', username: '', role: 'student', password: 'password123', nis: '', phone: '', avatar: '' });
         fetchUsers();
       }
     } catch (err) {
@@ -97,7 +157,8 @@ export const AdminUsers = () => {
       password: '',
       nis: u.nis || '',
       phone: u.phone || '',
-      status: u.status || 'active'
+      status: u.status || 'active',
+      avatar: u.avatar || ''
     });
     setIsEditModalOpen(true);
   };
@@ -112,7 +173,8 @@ export const AdminUsers = () => {
         role: editFormData.role,
         nis: editFormData.nis,
         phone: editFormData.phone,
-        status: editFormData.status
+        status: editFormData.status,
+        avatar: editFormData.avatar || null
       };
       if (editFormData.password.trim()) {
         payload.password = editFormData.password.trim();
@@ -251,10 +313,10 @@ export const AdminUsers = () => {
                   <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                        <UserAvatar
+                          src={u.avatar}
                           alt={u.name}
-                          className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                          size="md"
                         />
                         <div>
                           <span className="font-bold text-slate-900 block">{u.name}</span>
@@ -326,6 +388,49 @@ export const AdminUsers = () => {
       {/* Modal Buat Akun */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Tambah Akun Pengguna Baru">
         <form onSubmit={handleCreateUser} className="space-y-4">
+          {/* Avatar Upload */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              Foto Profil Pengguna (Opsional)
+            </label>
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+              <UserAvatar src={formData.avatar} alt="Preview Foto" size="lg" />
+              <div className="flex-1 min-w-0 space-y-1">
+                <input
+                  type="file"
+                  ref={createFileInputRef}
+                  onChange={(e) => handleAvatarFileSelect(e, false)}
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => createFileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="px-3 py-1.5 bg-white border border-slate-300 hover:border-emerald-500 hover:text-emerald-600 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload size={14} />
+                    <span>{formData.avatar ? 'Ganti Foto' : 'Unggah Foto'}</span>
+                  </button>
+                  {formData.avatar && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, avatar: '' }))}
+                      className="px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <X size={14} />
+                      <span>Hapus</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Format: JPG, PNG, WEBP (Maksimal 5MB). Kosongkan jika tanpa gambar.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
               Nama Lengkap
@@ -420,6 +525,49 @@ export const AdminUsers = () => {
       {/* Modal Edit Akun */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={`Edit Pengguna: ${editingUser?.name || ''}`}>
         <form onSubmit={handleUpdateUser} className="space-y-4">
+          {/* Ubah Avatar */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              Foto Profil Pengguna
+            </label>
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+              <UserAvatar src={editFormData.avatar} alt={editFormData.name || 'Avatar'} size="lg" />
+              <div className="flex-1 min-w-0 space-y-1">
+                <input
+                  type="file"
+                  ref={editFileInputRef}
+                  onChange={(e) => handleAvatarFileSelect(e, true)}
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => editFileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="px-3 py-1.5 bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload size={14} />
+                    <span>{editFormData.avatar ? 'Ganti Foto' : 'Unggah Foto'}</span>
+                  </button>
+                  {editFormData.avatar && (
+                    <button
+                      type="button"
+                      onClick={() => setEditFormData(prev => ({ ...prev, avatar: '' }))}
+                      className="px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <X size={14} />
+                      <span>Hapus Foto</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Format: JPG, PNG, WEBP. Jika dihapus / kosong, akan menggunakan placeholder icon.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
               Nama Lengkap

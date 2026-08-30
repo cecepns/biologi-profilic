@@ -15,6 +15,7 @@ import {
   HelpCircle,
   X
 } from 'lucide-react';
+import logoImg from '../../assets/logo.png';
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -69,9 +70,11 @@ export const Sidebar = ({ isOpen, onClose }) => {
           {/* Header */}
           <div className="flex items-center justify-between px-2 mb-8">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                <span className="font-extrabold text-xl">🧬</span>
-              </div>
+              <img
+                src={logoImg}
+                alt="BioProFLiC Logo"
+                className="w-10 h-10 object-contain drop-shadow-sm shrink-0"
+              />
               <div>
                 <h1 className="font-extrabold text-lg text-slate-800 tracking-tight leading-tight">BioProFLiC</h1>
                 <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">

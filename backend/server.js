@@ -257,7 +257,7 @@ app.post('/api/users', async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO users (name, username, password, role, avatar, phone, status) VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-      [name, username, hashedPassword, role, avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', phone || null]
+      [name, username, hashedPassword, role, avatar || null, phone || null]
     );
 
     const newUserId = result.insertId;
@@ -283,7 +283,7 @@ app.post('/api/users', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Pengguna baru berhasil ditambahkan ke database.',
-      data: { id: newUserId, name, username, role }
+      data: { id: newUserId, name, username, role, avatar: avatar || null }
     });
   } catch (error) {
     console.error('Create user error:', error);
@@ -296,27 +296,28 @@ app.put('/api/users/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const { name, username, role, status, phone, avatar, password, nis } = req.body;
 
-    let updateQuery = `UPDATE users SET 
-      name = COALESCE(?, name),
-      username = COALESCE(?, username),
-      role = COALESCE(?, role),
-      status = COALESCE(?, status),
-      phone = COALESCE(?, phone),
-      avatar = COALESCE(?, avatar)`;
-    const params = [name, username, role, status, phone, avatar];
+    const updateFields = [];
+    const params = [];
+
+    if (name !== undefined) { updateFields.push('name = ?'); params.push(name); }
+    if (username !== undefined) { updateFields.push('username = ?'); params.push(username); }
+    if (role !== undefined) { updateFields.push('role = ?'); params.push(role); }
+    if (status !== undefined) { updateFields.push('status = ?'); params.push(status); }
+    if (phone !== undefined) { updateFields.push('phone = ?'); params.push(phone); }
+    if (avatar !== undefined) { updateFields.push('avatar = ?'); params.push(avatar || null); }
 
     if (password && password.trim()) {
       const hashedPassword = await bcrypt.hash(password.trim(), 10);
-      updateQuery += `, password = ?`;
+      updateFields.push('password = ?');
       params.push(hashedPassword);
     }
 
-    updateQuery += ` WHERE id = ?`;
-    params.push(id);
+    if (updateFields.length > 0) {
+      params.push(id);
+      await pool.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, params);
+    }
 
-    await pool.query(updateQuery, params);
-
-    if (nis) {
+    if (nis !== undefined) {
       await pool.query(`UPDATE students SET nis = ? WHERE user_id = ?`, [nis, id]);
     }
 

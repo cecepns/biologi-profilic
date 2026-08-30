@@ -35,7 +35,7 @@ export const TeacherDashboard = () => {
             Dashboard Pendidik
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Halo, Bu Guru Maya 👋
+            Halo, {user?.name || 'Bapak/Ibu Guru'} 👋
           </h1>
           <p className="text-xs sm:text-sm text-emerald-100 mt-2 max-w-xl leading-relaxed">
             Selamat datang di portal manajemen pembelajaran Biologi model ProFLiC. Pantau aktivitas kelompok dan progres 5 sintaks siswa secara real-time.

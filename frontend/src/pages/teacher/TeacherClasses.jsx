@@ -590,7 +590,7 @@ export const TeacherClasses = () => {
                     <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4">
                         <span className="font-extrabold text-slate-900 block">{c.name}</span>
-                        <span className="text-[11px] text-slate-500 font-medium">Wali: {c.teacher_name || 'Ibu Maya Sartika, M.Pd.'}</span>
+                        <span className="text-[11px] text-slate-500 font-medium">Wali: {c.teacher_name || user?.name || 'Wali Kelas'}</span>
                       </td>
                       <td className="py-3.5 px-3">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">

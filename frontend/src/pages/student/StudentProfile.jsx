@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Award, GraduationCap, CheckCircle2, BookOpen, Star, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
+import { UserAvatar } from '../../components/common/UserAvatar';
 import toast from 'react-hot-toast';
 
 export const StudentProfile = () => {
@@ -45,10 +46,11 @@ export const StudentProfile = () => {
       {/* Profile Card Header */}
       <div className="bg-white rounded-3xl border border-slate-150 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
         <div className="relative">
-          <img
-            src={user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+          <UserAvatar
+            src={user?.avatar}
             alt={user?.name}
-            className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-emerald-500/20 shadow-md"
+            size="2xl"
+            className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-4 border-emerald-500/20 shadow-md"
           />
           <div className="absolute -bottom-2 -right-2 bg-emerald-600 text-white p-1.5 rounded-xl shadow-xs">
             <ShieldCheck size={16} />

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { Bell, UserCircle2, ChevronDown, LogOut, CheckCheck, Sparkles, Menu } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, CheckCheck, Sparkles, Menu } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { UserAvatar } from './UserAvatar';
+import logoImg from '../../assets/logo.png';
 
 export const Navbar = ({ onToggleSidebar }) => {
   const { user, switchDemoRole, logout } = useAuth();
@@ -26,9 +28,11 @@ export const Navbar = ({ onToggleSidebar }) => {
           )}
 
           <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform shrink-0">
-              <span className="font-extrabold text-base sm:text-lg">🧬</span>
-            </div>
+            <img
+              src={logoImg}
+              alt="BioProFLiC Logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 object-contain group-hover:scale-105 transition-transform shrink-0"
+            />
             <div className="min-w-0">
               <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent block leading-tight truncate">
                 BioProFLiC
@@ -149,10 +153,11 @@ export const Navbar = ({ onToggleSidebar }) => {
 
           {/* User Profile Avatar */}
           <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-200">
-            <img
-              src={user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+            <UserAvatar
+              src={user?.avatar}
               alt={user?.name}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-emerald-500/30 shadow-sm shrink-0"
+              size="sm"
+              className="sm:w-9 sm:h-9"
             />
             <div className="hidden md:block text-left">
               <span className="text-xs font-bold text-slate-800 block leading-tight line-clamp-1">{user?.name}</span>

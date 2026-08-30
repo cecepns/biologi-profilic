@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, Lock, User, ArrowRight, ShieldCheck, GraduationCap, School, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import logoImg from '../../assets/logo.png';
+
 export const LoginPage = () => {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -105,14 +107,14 @@ export const LoginPage = () => {
         
         {/* Top Biology Accent Header */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-emerald-600/30 mx-auto">
-            🧬
+          <div className="flex justify-center">
+            <img src={logoImg} alt="BioProFLiC Logo" className="h-16 w-auto object-contain drop-shadow-md mx-auto" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
             BioProFLiC
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto">
-            Platform Pembelajaran Biologi SMA Berbasis 5 Sintaks ProFLiC (Problem-Based & Flipped Learning)
+            Platform Pembelajaran Biologi SMA Berbasis Model ProFLiC (PBL-Flipped-Collaborative Learning)
           </p>
         </div>
 
