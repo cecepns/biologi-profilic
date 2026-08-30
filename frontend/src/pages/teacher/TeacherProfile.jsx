@@ -1,15 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Award, GraduationCap, CheckCircle2, BookOpen, Star, Sparkles, ShieldCheck, Loader2, Edit3, Phone, Mail, FileText, Lock, Upload, X, User } from 'lucide-react';
+import {
+  GraduationCap,
+  ShieldCheck,
+  BookOpen,
+  Award,
+  Users,
+  Edit3,
+  Phone,
+  Mail,
+  FileText,
+  Lock,
+  Upload,
+  X,
+  Sparkles,
+  Layers,
+  CheckCircle2,
+  Calendar,
+  Loader2
+} from 'lucide-react';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
 import { UserAvatar } from '../../components/common/UserAvatar';
 import { Modal } from '../../components/common/Modal';
 import toast from 'react-hot-toast';
 
-export const StudentProfile = () => {
+export const TeacherProfile = () => {
   const { user, updateUser } = useAuth();
   const [profileData, setProfileData] = useState(null);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -20,28 +39,34 @@ export const StudentProfile = () => {
     name: '',
     phone: '',
     bio: '',
-    nis: '',
+    nip: '',
     avatar: '',
     password: ''
   });
 
-  const fetchStudentProfile = async () => {
+  const fetchTeacherProfile = async () => {
     setLoading(true);
     try {
-      const studentId = user?.studentId || user?.id || 1;
-      const res = await request.get(API_ENDPOINTS.STUDENTS.DETAIL(studentId));
+      const userId = user?.id || 1;
+      const res = await request.get(API_ENDPOINTS.AUTH.PROFILE, { userId });
       if (res.success && res.data) {
         setProfileData(res.data);
       }
+
+      // Fetch classes for stats
+      const classRes = await request.get(API_ENDPOINTS.CLASSES.LIST, { limit: 10 });
+      if (classRes.success && classRes.data) {
+        setClasses(classRes.data);
+      }
     } catch (err) {
-      console.error('Failed to load student profile:', err);
+      console.error('Failed to load teacher profile:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStudentProfile();
+    fetchTeacherProfile();
   }, [user]);
 
   const handleOpenEditModal = () => {
@@ -49,7 +74,7 @@ export const StudentProfile = () => {
       name: profileData?.name || user?.name || '',
       phone: profileData?.phone || user?.phone || '',
       bio: profileData?.bio || user?.bio || '',
-      nis: profileData?.nis || user?.nis || '',
+      nip: profileData?.nip || user?.nip || '',
       avatar: profileData?.avatar || user?.avatar || '',
       password: ''
     });
@@ -81,7 +106,7 @@ export const StudentProfile = () => {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!editForm.name.trim()) {
-      toast.error('Nama lengkap wajib diisi!');
+      toast.error('Nama lengkap pendidik wajib diisi!');
       return;
     }
 
@@ -93,7 +118,7 @@ export const StudentProfile = () => {
         name: editForm.name.trim(),
         phone: editForm.phone.trim(),
         bio: editForm.bio.trim(),
-        nis: editForm.nis.trim(),
+        nip: editForm.nip.trim(),
         avatar: editForm.avatar
       };
 
@@ -103,16 +128,16 @@ export const StudentProfile = () => {
 
       const res = await request.put(API_ENDPOINTS.AUTH.PROFILE, payload);
       if (res.success) {
-        toast.success('Profil berhasil diperbarui!');
+        toast.success('Profil pendidik berhasil diperbarui!');
         updateUser({
           name: editForm.name.trim(),
           avatar: editForm.avatar,
           phone: editForm.phone.trim(),
           bio: editForm.bio.trim(),
-          nis: editForm.nis.trim()
+          nip: editForm.nip.trim()
         });
         setIsEditModalOpen(false);
-        fetchStudentProfile();
+        fetchTeacherProfile();
       } else {
         toast.error(res.message || 'Gagal memperbarui profil.');
       }
@@ -123,129 +148,170 @@ export const StudentProfile = () => {
     }
   };
 
-  const scores = profileData?.scores || [
-    { stage: '1. Pre-Class Preparation', score: 95, weight: '15%', note: 'Sangat Mandiri' },
-    { stage: '2. Problem Orientation', score: 90, weight: '20%', note: 'Analisis Kritis' },
-    { stage: '3. Collaborative Investigation', score: 92, weight: '25%', note: 'Aktif Bekerja Sama' },
-    { stage: '4. Presentation & Discussion', score: 90, weight: '20%', note: 'Penyampaian Runut' },
-    { stage: '5. Reflection & Evaluation', score: 95, weight: '20%', note: 'CBT & Refleksi Valid' },
-  ];
+  if (loading) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-150 p-12 text-center shadow-sm flex flex-col items-center justify-center gap-3">
+        <Loader2 className="animate-spin text-emerald-600" size={32} />
+        <p className="text-xs font-bold text-slate-500">Memuat profil pendidik...</p>
+      </div>
+    );
+  }
 
-  const finalScore = profileData?.finalScore || 92.4;
-  const predicate = profileData?.predicate || 'A (Sangat Baik)';
+  const teacherName = profileData?.name || user?.name || 'Bapak/Ibu Guru';
+  const teacherNip = profileData?.nip || user?.nip || '198503152010012004';
+  const teacherPhone = profileData?.phone || user?.phone || '0812-3456-7890';
+  const teacherBio = profileData?.bio || user?.bio || 'Pendidik Biologi SMA berdedikasi dalam mengembangkan pembelajaran inkuiri berbasis 5 Sintaks ProFLiC untuk mencetak generasi saintis unggul.';
 
   return (
-    <div className="space-y-6 pb-12 max-w-4xl mx-auto">
-      {/* Profile Card Header */}
-      <div className="bg-white rounded-3xl border border-slate-150 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
-        <div className="relative group">
+    <div className="space-y-6 pb-12 max-w-5xl mx-auto">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-md">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-200 mb-2">
+          <GraduationCap size={16} />
+          <span>Profil Pendidik & Pengampu Biologi SMA</span>
+        </div>
+        <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+          Manajemen Profil Guru & Instruktur
+        </h2>
+        <p className="text-xs sm:text-sm text-emerald-100 mt-2 max-w-2xl leading-relaxed">
+          Kelola informasi identitas, foto profil, NIP, kontak pembimbing, serta pantau ringkasan kelas binaan model pembelajaran ProFLiC.
+        </p>
+      </div>
+
+      {/* Main Profile Card */}
+      <div className="bg-white rounded-3xl border border-slate-150 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
+        <div className="relative group shrink-0">
           <UserAvatar
             src={user?.avatar || profileData?.avatar}
-            alt={profileData?.name || user?.name}
+            alt={teacherName}
             size="2xl"
-            className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-4 border-emerald-500/20 shadow-md"
+            className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-emerald-500/20 shadow-md"
           />
           <button
             onClick={handleOpenEditModal}
             className="absolute -bottom-2 -right-2 bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl shadow-xs transition-colors cursor-pointer"
             title="Ubah Foto Profil"
           >
-            <Edit3 size={15} />
+            <Edit3 size={16} />
           </button>
         </div>
 
-        <div className="flex-1 space-y-2">
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">{profileData?.name || user?.name || 'Ahmad Fauzan'}</h1>
-            <span className="text-xs font-bold px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Siswa Aktif
+        <div className="flex-1 space-y-3">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900">{teacherName}</h1>
+            <span className="text-xs font-bold px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Guru Pembimbing ProFLiC
             </span>
           </div>
 
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            NIS: <strong>{profileData?.nis || user?.nis || '20261101'}</strong> • Kelas: <strong>{profileData?.class_name || user?.className || 'XI IPA 2'}</strong> • {profileData?.group_name || user?.groupName || 'Kelompok 1 (Fitoplankton)'}
-          </p>
+          <div className="text-xs sm:text-sm text-slate-600 space-y-1 font-medium">
+            <p>NIP: <strong>{teacherNip}</strong> • Spesialisasi: <strong>Biologi SMA & Ekosistem</strong></p>
+            <p>Kontak / WA: <strong>{teacherPhone}</strong></p>
+          </div>
 
-          {(profileData?.bio || user?.bio) && (
-            <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 italic">
-              "{profileData?.bio || user?.bio}"
-            </p>
-          )}
+          <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs text-slate-600 leading-relaxed italic">
+            "{teacherBio}"
+          </div>
 
-          <div className="pt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
+          <div className="pt-2 flex flex-wrap gap-2 justify-center md:justify-start">
             <button
               onClick={handleOpenEditModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
             >
-              <Edit3 size={13} />
+              <Edit3 size={14} />
               <span>Edit Profil & Foto</span>
             </button>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
-              <GraduationCap size={14} className="text-emerald-600" />
-              SMA Kurikulum Merdeka
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200">
-              <Sparkles size={14} />
-              Badge: Peneliti Ekosistem Handal
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
+              <ShieldCheck size={14} className="text-emerald-600" />
+              Akun Pendidik Terverifikasi
             </span>
           </div>
-        </div>
-
-        {/* Final Grade Badge */}
-        <div className="p-4 bg-emerald-600 text-white rounded-3xl text-center shadow-md shadow-emerald-600/20 min-w-[130px]">
-          <span className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider block">Nilai Akhir</span>
-          <span className="text-3xl font-black">{finalScore}</span>
-          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full block mt-1 font-bold">Predikat: {predicate}</span>
         </div>
       </div>
 
-      {/* Breakdown Nilai 5 Sintaks ProFLiC */}
+      {/* Class and Supervision Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-5 rounded-3xl border border-slate-150 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+            <GraduationCap size={24} />
+          </div>
+          <div>
+            <span className="text-xs text-slate-400 font-bold block">Kelas Binaan</span>
+            <span className="text-2xl font-black text-slate-800">{classes.length || 2} Kelas</span>
+            <span className="text-[11px] text-emerald-600 font-semibold block mt-0.5">Tahun Ajaran 2026/2027</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-slate-150 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+            <Layers size={24} />
+          </div>
+          <div>
+            <span className="text-xs text-slate-400 font-bold block">Materi & Sintaks</span>
+            <span className="text-2xl font-black text-slate-800">5 Sintaks</span>
+            <span className="text-[11px] text-purple-600 font-semibold block mt-0.5">Model ProFLiC Aktif</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-slate-150 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+            <Award size={24} />
+          </div>
+          <div>
+            <span className="text-xs text-slate-400 font-bold block">Kelompok Kolaborasi</span>
+            <span className="text-2xl font-black text-slate-800">6 Kelompok</span>
+            <span className="text-[11px] text-amber-600 font-semibold block mt-0.5">Dalam 2 Sesi Proyek</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Daftar Kelas Yang Diampu */}
       <div className="bg-white rounded-3xl border border-slate-150 p-6 sm:p-8 shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-extrabold text-slate-800">Rekapitulasi Nilai 5 Sintaks ProFLiC</h3>
-            <p className="text-xs text-slate-400">Rincian perolehan skor aktivitas individu dan kolaborasi kelompok di database.</p>
+            <h3 className="text-base font-extrabold text-slate-800">Daftar Kelas Yang Diampu</h3>
+            <p className="text-xs text-slate-400">Kelas-kelas yang aktif mengikuti pembelajaran Biologi model ProFLiC.</p>
           </div>
-          <Award size={20} className="text-emerald-600" />
+          <Users size={20} className="text-emerald-600" />
         </div>
 
-        {loading ? (
-          <div className="py-8 flex items-center justify-center gap-2 text-slate-400 text-xs">
-            <Loader2 className="animate-spin text-emerald-600" size={18} />
-            <span>Memuat rincian nilai capaian...</span>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {scores.map((sc, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {classes.length > 0 ? (
+            classes.map((c) => (
               <div
-                key={i}
-                className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                key={c.id}
+                className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between"
               >
                 <div>
-                  <span className="font-bold text-xs sm:text-sm text-slate-800 block">{sc.stage}</span>
-                  <span className="text-[11px] text-slate-500">Bobot: {sc.weight} • Catatan: {sc.note}</span>
+                  <h4 className="font-extrabold text-sm text-slate-800">{c.name}</h4>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Kode: {c.code || 'BIO-XI'} • {c.student_count || 32} Siswa
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-3 self-end sm:self-center">
-                  <div className="w-28 sm:w-36 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                      style={{ width: `${sc.score}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-black text-sm text-slate-800 min-w-[32px] text-right">{sc.score}</span>
-                </div>
+                <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl">
+                  Aktif
+                </span>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          ) : (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between col-span-2">
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-800">XI IPA 2 (Biologi Peminatan)</h4>
+                <span className="text-xs text-slate-500 font-medium">32 Siswa • Kurikulum Merdeka</span>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl">
+                Aktif
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Modal Edit Profil Siswa */}
+      {/* Modal Edit Profil Guru */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Edit Profil Siswa"
+        title="Edit Profil Pendidik"
       >
         <form onSubmit={handleSaveProfile} className="space-y-4">
           {/* Avatar Upload Preview */}
@@ -292,14 +358,14 @@ export const StudentProfile = () => {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
-              Nama Lengkap Siswa <span className="text-rose-500">*</span>
+              Nama & Gelar Pendidik <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={editForm.name}
               onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Nama lengkap siswa..."
+              placeholder="Contoh: Dra. Maya Sartika, M.Pd."
               className="w-full p-3 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>
@@ -307,13 +373,13 @@ export const StudentProfile = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
-                Nomor Induk Siswa (NIS)
+                Nomor Induk Pegawai (NIP)
               </label>
               <input
                 type="text"
-                value={editForm.nis}
-                onChange={(e) => setEditForm(prev => ({ ...prev, nis: e.target.value }))}
-                placeholder="20261101"
+                value={editForm.nip}
+                onChange={(e) => setEditForm(prev => ({ ...prev, nip: e.target.value }))}
+                placeholder="198503152010012004"
                 className="w-full p-3 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
@@ -333,13 +399,13 @@ export const StudentProfile = () => {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
-              Bio / Motto Belajar
+              Bio / Motto Pendidik
             </label>
             <textarea
               rows={2}
               value={editForm.bio}
               onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
-              placeholder="Tuliskan motto atau minat biologi Anda..."
+              placeholder="Tuliskan catatan dedikasi atau visi pembelajaran Anda..."
               className="w-full p-3 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>

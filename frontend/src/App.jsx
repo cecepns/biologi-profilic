@@ -21,6 +21,7 @@ import { TeacherDiscussions } from './pages/teacher/TeacherDiscussions';
 import { TeacherClasses } from './pages/teacher/TeacherClasses';
 import { TeacherGradingCenter } from './pages/teacher/TeacherGradingCenter';
 import { TeacherReports } from './pages/teacher/TeacherReports';
+import { TeacherProfile } from './pages/teacher/TeacherProfile';
 
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminUsers } from './pages/admin/AdminUsers';
@@ -101,6 +102,7 @@ export const App = () => {
           <Route path="/teacher/classes" element={<TeacherClasses />} />
           <Route path="/teacher/grading" element={<TeacherGradingCenter />} />
           <Route path="/teacher/reports" element={<TeacherReports />} />
+          <Route path="/teacher/profile" element={<TeacherProfile />} />
 
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />

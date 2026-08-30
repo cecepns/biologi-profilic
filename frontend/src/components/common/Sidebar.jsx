@@ -29,6 +29,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Manajemen Kelas', to: '/teacher/classes', icon: GraduationCap },
     { name: 'Penilaian & Rubrik', to: '/teacher/grading', icon: Award },
     { name: 'Laporan Pembelajaran', to: '/teacher/reports', icon: BarChart3 },
+    { name: 'Profil Pendidik', to: '/teacher/profile', icon: Settings },
   ];
 
   const adminNav = [

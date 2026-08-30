@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Presentation, MessageSquare, Award, Star, ExternalLink, Send, CheckCircle2, UploadCloud, HelpCircle, Loader2, Upload } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Presentation, MessageSquare, Award, Star, ExternalLink, Send, CheckCircle2, UploadCloud, HelpCircle, Loader2, Upload, Edit3, Link, FileText, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
+import { getFileUrl } from '../../utils/api';
+import { Modal } from '../common/Modal';
 import toast from 'react-hot-toast';
 
 export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [uploadingSlide, setUploadingSlide] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [presentation, setPresentation] = useState({
     id: 1,
     title: 'Rancangan Sistem Bioremediasi Mikroalga Berbasis Energi Terbarukan',
     groupName: user?.groupName || 'Kelompok 1 - Fitoplankton',
-    slideUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    slideUrl: '/uploads-bioproflic/presentasi_kelompok1_ekosistem.pdf',
+    embedLink: '',
     notes: 'Presentasi membahas perbandingan kinetika reduksi fosfat dan model prototipe lapangan.',
     date: '2026-09-02 09:00',
     rubricScore: {
@@ -25,6 +31,13 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
       total: 92.1,
       feedback: 'Penyampaian sangat runut, argumen ilmiah penggunaan fotobioreaktor Chlorella didukung data yang akurat.'
     }
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    notes: '',
+    slideUrl: '',
+    embedLink: ''
   });
 
   const [feedbacks, setFeedbacks] = useState([
@@ -55,53 +68,114 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
   const [commentType, setCommentType] = useState('question');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  useEffect(() => {
-    const fetchPresentationData = async () => {
-      setLoading(true);
-      try {
-        const presRes = await request.get(API_ENDPOINTS.PRESENTATIONS.LIST, { stageId: stage?.id || 4 });
-        if (presRes.success && presRes.data && presRes.data.length > 0) {
-          const p = presRes.data[0];
-          setPresentation({
-            id: p.id,
-            title: p.title || 'Rancangan Sistem Bioremediasi Mikroalga',
-            groupName: p.group_name || user?.groupName || 'Kelompok 1 - Fitoplankton',
-            slideUrl: p.slide_url || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-            notes: p.notes || 'Bahan tayang presentasi kelompok model ProFLiC.',
-            date: p.presentation_date ? new Date(p.presentation_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '2 Sep 2026, 09:00',
-            rubricScore: p.rubric_score ? {
-              mastery: p.rubric_score.mastery_score,
-              problemAnalysis: p.rubric_score.problem_analysis_score,
-              solutionInnovation: p.rubric_score.solution_innovation_score,
-              presentationDelivery: p.rubric_score.presentation_delivery_score,
-              teamwork: p.rubric_score.teamwork_score,
-              total: p.rubric_score.total_score,
-              feedback: p.rubric_score.feedback
-            } : null
-          });
+  const fetchPresentationData = async () => {
+    setLoading(true);
+    try {
+      const presRes = await request.get(API_ENDPOINTS.PRESENTATIONS.LIST, { stageId: stage?.id || 4 });
+      if (presRes.success && presRes.data && presRes.data.length > 0) {
+        const p = presRes.data[0];
+        setPresentation({
+          id: p.id,
+          title: p.title || 'Rancangan Sistem Bioremediasi Mikroalga',
+          groupName: p.group_name || user?.groupName || 'Kelompok 1 - Fitoplankton',
+          slideUrl: p.slide_url || '',
+          embedLink: p.embed_link || '',
+          notes: p.notes || 'Bahan tayang presentasi kelompok model ProFLiC.',
+          date: p.presentation_date ? new Date(p.presentation_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '2 Sep 2026, 09:00',
+          rubricScore: p.rubric_score ? {
+            mastery: p.rubric_score.mastery_score,
+            problemAnalysis: p.rubric_score.problem_analysis_score,
+            solutionInnovation: p.rubric_score.solution_innovation_score,
+            presentationDelivery: p.rubric_score.presentation_delivery_score,
+            teamwork: p.rubric_score.teamwork_score,
+            total: p.rubric_score.total_score,
+            feedback: p.rubric_score.feedback
+          } : null
+        });
 
-          // Fetch feedbacks
-          const fbRes = await request.get(API_ENDPOINTS.PRESENTATIONS.FEEDBACKS(p.id));
-          if (fbRes.success && fbRes.data && fbRes.data.length > 0) {
-            const mapped = fbRes.data.map(f => ({
-              id: f.id,
-              userName: f.user_name || 'Pengguna',
-              type: f.type || 'feedback',
-              comment: f.comment,
-              time: f.created_at ? new Date(f.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Baru saja'
-            }));
-            setFeedbacks(mapped);
-          }
+        // Fetch feedbacks
+        const fbRes = await request.get(API_ENDPOINTS.PRESENTATIONS.FEEDBACKS(p.id));
+        if (fbRes.success && fbRes.data && fbRes.data.length > 0) {
+          const mapped = fbRes.data.map(f => ({
+            id: f.id,
+            userName: f.user_name || 'Pengguna',
+            type: f.type || 'feedback',
+            comment: f.comment,
+            time: f.created_at ? new Date(f.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Baru saja'
+          }));
+          setFeedbacks(mapped);
         }
-      } catch (err) {
-        console.error('Failed to load presentation data:', err);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error('Failed to load presentation data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPresentationData();
   }, [stage, user]);
+
+  const handleOpenEditModal = () => {
+    setEditFormData({
+      title: presentation.title || '',
+      notes: presentation.notes || '',
+      slideUrl: presentation.slideUrl || '',
+      embedLink: presentation.embedLink || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingSlide(true);
+    const toastId = toast.loading('Mengunggah file slide presentasi...');
+    try {
+      const res = await request.uploadFile(API_ENDPOINTS.UPLOAD, file);
+      if (res.success && res.fileUrl) {
+        setEditFormData(prev => ({ ...prev, slideUrl: res.fileUrl }));
+        toast.success('File slide berhasil diunggah!', { id: toastId });
+      } else {
+        toast.error(res?.message || 'Gagal mengunggah slide.', { id: toastId });
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengunggah file slide.', { id: toastId });
+    } finally {
+      setUploadingSlide(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveSlide = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        title: editFormData.title,
+        notes: editFormData.notes,
+        slide_url: editFormData.slideUrl,
+        embed_link: editFormData.embedLink
+      };
+
+      if (presentation?.id) {
+        await request.put(API_ENDPOINTS.PRESENTATIONS.UPDATE(presentation.id), payload);
+      } else {
+        await request.post(API_ENDPOINTS.PRESENTATIONS.CREATE, {
+          ...payload,
+          stage_id: stage?.id || 4,
+          group_id: user?.groupId || 1
+        });
+      }
+
+      toast.success('Bahan presentasi kelompok berhasil diperbarui!');
+      setIsEditModalOpen(false);
+      fetchPresentationData();
+    } catch (err) {
+      toast.error('Gagal memperbarui presentasi: ' + err.message);
+    }
+  };
 
   const handleAddFeedback = async (e) => {
     e.preventDefault();
@@ -148,7 +222,7 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
   const groupName = presentation?.groupName || user?.groupName || 'Kelompok 1 - Fitoplankton';
   const presTitle = presentation?.title || 'Rancangan Sistem Bioremediasi Lingkungan';
   const presDate = presentation?.date || '2026-09-02 09:00';
-  const slideUrl = presentation?.slideUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+  const activeSlideUrl = presentation?.slideUrl || presentation?.embedLink;
 
   return (
     <div className="space-y-6">
@@ -179,15 +253,31 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
             <p className="text-xs text-slate-500 mt-1">Jadwal Sesi: {presDate}</p>
           </div>
 
-          <a
-            href={slideUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-colors self-start sm:self-auto"
-          >
-            <ExternalLink size={16} />
-            <span>Buka Slide Presentasi</span>
-          </a>
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <button
+              onClick={handleOpenEditModal}
+              className="px-4 py-2.5 rounded-xl border border-purple-300 hover:bg-purple-50 text-purple-700 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+            >
+              <Edit3 size={15} />
+              <span>Unggah / Kelola Slide</span>
+            </button>
+
+            {activeSlideUrl ? (
+              <a
+                href={getFileUrl(activeSlideUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+              >
+                <ExternalLink size={16} />
+                <span>Buka Slide Presentasi</span>
+              </a>
+            ) : (
+              <span className="px-3.5 py-2 text-xs font-semibold text-slate-400 bg-slate-100 rounded-xl">
+                Belum ada file slide
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Slide Preview Box */}
@@ -199,9 +289,15 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
             <h4 className="font-extrabold text-sm sm:text-base">{presTitle}</h4>
             <p className="text-xs text-slate-400 mt-1 max-w-md">{presentation?.notes || 'Bahan tayang presentasi kelompok model ProFLiC.'}</p>
           </div>
-          <span className="text-[11px] text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-800 px-3 py-1 rounded-full">
-            ● Slide Terverifikasi Siap Paparan
-          </span>
+          {activeSlideUrl ? (
+            <span className="text-[11px] text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-800 px-3 py-1 rounded-full">
+              ● Slide Terverifikasi Siap Paparan
+            </span>
+          ) : (
+            <span className="text-[11px] text-amber-400 font-semibold bg-amber-950/60 border border-amber-800 px-3 py-1 rounded-full">
+              ⚠️ Silakan klik "Unggah / Kelola Slide" untuk melampirkan berkas presentasi
+            </span>
+          )}
         </div>
 
         {/* Rubrik Penilaian Guru */}
@@ -349,6 +445,106 @@ export const Stage4PresentationDiscussion = ({ stage, onComplete }) => {
           </button>
         </div>
       </div>
+
+      {/* Modal Kelola / Unggah Berkas Slide Presentasi */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Unggah / Kelola Berkas Slide Presentasi Kelompok"
+      >
+        <form onSubmit={handleSaveSlide} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              Judul Bahan Presentasi
+            </label>
+            <input
+              type="text"
+              required
+              value={editFormData.title}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Contoh: Rancangan Sistem Bioremediasi Mikroalga..."
+              className="w-full p-3 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              Unggah File Slide (PDF / PPT / PPTX)
+            </label>
+            <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".pdf,.ppt,.pptx"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingSlide}
+                className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <Upload size={14} />
+                <span>{uploadingSlide ? 'Mengunggah...' : 'Pilih File Slide'}</span>
+              </button>
+              <div className="flex-1 min-w-0">
+                {editFormData.slideUrl ? (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold truncate">
+                    <FileText size={14} className="shrink-0" />
+                    <span className="truncate">{editFormData.slideUrl}</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400">Belum ada file yang diunggah</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              Atau Tautan Slide Online (Canva / Google Slides)
+            </label>
+            <input
+              type="url"
+              value={editFormData.embedLink}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, embedLink: e.target.value }))}
+              placeholder="https://docs.google.com/presentation/... atau https://canva.com/..."
+              className="w-full p-3 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              Catatan / Ringkasan Paparan
+            </label>
+            <textarea
+              rows={3}
+              value={editFormData.notes}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Tuliskan catatan penting bahan tayang..."
+              className="w-full p-3 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={uploadingSlide}
+              className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs shadow-sm cursor-pointer transition-all disabled:opacity-50"
+            >
+              Simpan Slide Presentasi
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

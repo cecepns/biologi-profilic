@@ -19,6 +19,7 @@ import {
   Download,
   Video
 } from 'lucide-react';
+import { getFileUrl } from '../../utils/api';
 import { request } from '../../utils/request';
 import { API_ENDPOINTS } from '../../utils/endpoints';
 import toast from 'react-hot-toast';
@@ -456,9 +457,9 @@ export const TeacherGradingCenter = () => {
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   {viewingSolution.slide_url && (
                     <a
-                      href={viewingSolution.slide_url}
+                      href={getFileUrl(viewingSolution.slide_url)}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-2 shadow-xs transition-colors"
                     >
                       <Download size={14} className="text-emerald-600" />

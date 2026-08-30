@@ -456,6 +456,7 @@ export const TeacherProjects = () => {
       title: '',
       context_story: '',
       trigger_question: '',
+      questions: [''],
       image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
     });
     setIsProblemFormModalOpen(true);
@@ -463,10 +464,21 @@ export const TeacherProjects = () => {
 
   const handleOpenEditProblem = (prob) => {
     setEditingProblem(prob);
+    let parsedQuestions = [];
+    if (prob.questions) {
+      try {
+        const parsed = typeof prob.questions === 'string' ? JSON.parse(prob.questions) : prob.questions;
+        if (Array.isArray(parsed)) {
+          parsedQuestions = parsed;
+        }
+      } catch { }
+    }
+
     setProblemForm({
       title: prob.title || '',
       context_story: prob.context_story || '',
       trigger_question: prob.trigger_question || '',
+      questions: parsedQuestions,
       image_url: prob.image_url || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
     });
     setIsProblemFormModalOpen(true);
@@ -1929,7 +1941,7 @@ export const TeacherProjects = () => {
                     </div>
                   </div>
 
-                  <div className="text-xs space-y-2 pt-1 border-t border-slate-100">
+                  <div className="text-xs space-y-2.5 pt-1 border-t border-slate-100">
                     <div>
                       <span className="font-bold text-slate-700 block">Cerita Kontekstual / Fenomena:</span>
                       <p className="text-slate-600 leading-relaxed mt-0.5 whitespace-pre-wrap">
@@ -1942,6 +1954,21 @@ export const TeacherProjects = () => {
                         "{prob.trigger_question}"
                       </p>
                     </div>
+
+                    {prob.questions && Array.isArray(typeof prob.questions === 'string' ? JSON.parse(prob.questions || '[]') : prob.questions) && (
+                      <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/60">
+                        <span className="font-bold text-emerald-900 block text-[11px] uppercase tracking-wider mb-1">
+                          Pertanyaan Tugas Siswa:
+                        </span>
+                        <ol className="list-decimal list-inside space-y-1 text-slate-700 font-medium">
+                          {(typeof prob.questions === 'string' ? JSON.parse(prob.questions) : prob.questions).map((qItem, qIdx) => (
+                            <li key={qIdx} className="leading-relaxed">
+                              {qItem.replace(/^\d+\.\s*/, '')}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2010,6 +2037,68 @@ export const TeacherProjects = () => {
               placeholder="Contoh: Bagaimana mekanisme biokimia terjadinya penurunan kadar DO akibat blooming alga dan solusi bioremediasi apa yang paling efektif?"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             ></textarea>
+          </div>
+
+          {/* Pertanyaan Lembar Kerja Siswa */}
+          <div className="space-y-3 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/70">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                  Daftar Pertanyaan Lembar Kerja Siswa (Sintaks 2)
+                </label>
+                <p className="text-[11px] text-emerald-700">
+                  Pertanyaan ini akan dijawab oleh siswa pada lembar orientasi masalah.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProblemForm(prev => ({ ...prev, questions: [...(prev.questions || []), ''] }))}
+                className="px-2.5 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+              >
+                <Plus size={13} />
+                <span>Tambah Pertanyaan</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {(problemForm.questions || []).map((q, qIdx) => (
+                <div key={qIdx} className="flex items-start gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-1.5">
+                    {qIdx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={q}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProblemForm(prev => {
+                        const updated = [...(prev.questions || [])];
+                        updated[qIdx] = val;
+                        return { ...prev, questions: updated };
+                      });
+                    }}
+                    placeholder={`Pertanyaan ${qIdx + 1}...`}
+                    className="flex-1 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  {(problemForm.questions || []).length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProblemForm(prev => ({
+                          ...prev,
+                          questions: prev.questions.filter((_, i) => i !== qIdx)
+                        }));
+                      }}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer mt-0.5"
+                      title="Hapus Pertanyaan"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">

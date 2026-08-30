@@ -153,21 +153,27 @@ export const Navbar = ({ onToggleSidebar }) => {
 
           {/* User Profile Avatar */}
           <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-200">
-            <UserAvatar
-              src={user?.avatar}
-              alt={user?.name}
-              size="sm"
-              className="sm:w-9 sm:h-9"
-            />
-            <div className="hidden md:block text-left">
-              <span className="text-xs font-bold text-slate-800 block leading-tight line-clamp-1">{user?.name}</span>
-              <span className="text-[11px] text-slate-400 block font-medium capitalize">
-                {user?.role === 'teacher' ? 'Guru Biologi' : user?.role === 'admin' ? 'Administrator' : `Siswa (${user?.className || 'XI IPA 2'})`}
-              </span>
-            </div>
+            <Link
+              to={user?.role === 'teacher' ? '/teacher/profile' : user?.role === 'student' ? '/student/profile' : '/admin/users'}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+              title="Lihat & Edit Profil"
+            >
+              <UserAvatar
+                src={user?.avatar}
+                alt={user?.name}
+                size="sm"
+                className="sm:w-9 sm:h-9"
+              />
+              <div className="hidden md:block text-left">
+                <span className="text-xs font-bold text-slate-800 block leading-tight line-clamp-1">{user?.name}</span>
+                <span className="text-[11px] text-slate-400 block font-medium capitalize">
+                  {user?.role === 'teacher' ? 'Guru Biologi' : user?.role === 'admin' ? 'Administrator' : `Siswa (${user?.className || 'XI IPA 2'})`}
+                </span>
+              </div>
+            </Link>
             <button
               onClick={logout}
-              className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-0.5"
+              className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-0.5 cursor-pointer"
               title="Keluar"
             >
               <LogOut size={16} className="sm:w-[17px] sm:h-[17px]" />

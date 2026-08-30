@@ -41,6 +41,7 @@ CREATE TABLE users (
   role ENUM('admin', 'teacher', 'student') NOT NULL DEFAULT 'student',
   avatar VARCHAR(255) DEFAULT NULL,
   phone VARCHAR(30) DEFAULT NULL,
+  bio TEXT DEFAULT NULL,
   status ENUM('active', 'inactive') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -143,6 +144,7 @@ CREATE TABLE stage_problems (
   title VARCHAR(250) NOT NULL,
   context_story TEXT NOT NULL,
   trigger_question TEXT NOT NULL,
+  questions JSON DEFAULT NULL,
   image_url VARCHAR(255) DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (stage_id) REFERENCES learning_stages(id) ON DELETE CASCADE
@@ -191,6 +193,7 @@ CREATE TABLE group_solutions (
   problem_analysis TEXT DEFAULT NULL,
   facts_identified TEXT DEFAULT NULL,
   inquiry_questions TEXT DEFAULT NULL,
+  answers JSON DEFAULT NULL,
   solution_alternatives JSON DEFAULT NULL,
   chosen_solution VARCHAR(255) DEFAULT NULL,
   solution_reasoning TEXT DEFAULT NULL,

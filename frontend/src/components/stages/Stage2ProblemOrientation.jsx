@@ -14,14 +14,7 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
   const [problems, setProblems] = useState(stage?.problems && stage.problems.length > 0 ? stage.problems : []);
   const [selectedProblemIndex, setSelectedProblemIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-
-  const [problemData, setProblemData] = useState({
-    identifiedProblem: '',
-    facts: '',
-    knowledgeGaps: '',
-    researchQuestion: ''
-  });
-
+  const [answers, setAnswers] = useState([]);
   const [lastSaved, setLastSaved] = useState('Tersimpan otomatis');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -33,42 +26,21 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
           const stageRes = await request.get(API_ENDPOINTS.STAGES.DETAIL(stageId));
           if (stageRes?.success && stageRes.data?.problems?.length > 0) {
             setProblems(stageRes.data.problems);
-          } else {
-            setProblems([
-              {
-                id: 1,
-                title: 'Kasus 1: Fenomena Blooming Alga di Waduk Cirata dan Kematian Ikan Massal',
-                context_story: 'Pada musim kemarau menjelang penghujan, teramati peningkatan drastis populasi eceng gondok dan alga hijau-biru di zona keramba jaring apung. Kadar oksigen terlarut (DO) drop drastis di bawah 2 mg/L pada malam hari, menyebabkan ribuan ikan nila mati lemas. Analisis awal menunjukkan akumulasi pakan fosfat tinggi dan limbah domestik dari hulu sungai.',
-                trigger_question: 'Bagaimana mekanisme biokimia terjadinya penurunan kadar DO akibat blooming alga dan solusi bioremediasi apa yang paling efektif untuk memulihkan kestabilan ekosistem perairan tersebut?',
-                image_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'
-              },
-              {
-                id: 2,
-                title: 'Kasus 2: Kontaminasi Mikroplastik & Bioakumulasi Logam Berat di Muara Sungai',
-                context_story: 'Sampel jaringan ikan bandeng dan kerang hijau di muara sungai menunjukkan partikel mikroplastik (<5mm) dan konsentrasi logam timbal (Pb) melampaui batas aman konsumsi. Hal ini mengganggu rantai makanan akuatik dan berpotensi memicu disrupsi endokrin pada fauna endemik serta membahayakan kesehatan masyarakat pesisir.',
-                trigger_question: 'Bagaimana mekanisme perpindahan zat pencemar non-biodegradable melalui jaring-jaring makanan (biomagnifikasi) dan strategi filtrasi ekologis apa yang dapat diterapkan di area muara?',
-                image_url: 'https://images.unsplash.com/photo-1618477388954-7852f32655ec?w=800'
-              },
-              {
-                id: 3,
-                title: 'Kasus 3: Kerusakan Mangrove & Ancaman Penurunan Stok Ikan Pesisir',
-                context_story: 'Alih fungsi 45% lahan mangrove menjadi area tambak intensif menyebabkan erosi pantai meningkat dan hilangnya daerah nursery ground alami bagi bibit udang dan kepiting bakau. Keanekaragaman spesies menurun drastis dan kadar salinitas air tanah daratan kian meningkat akibat intrusi air laut.',
-                trigger_question: 'Bagaimana peranan vegetasi mangrove sebagai habitat kunci (keystone ecosystem) dalam siklus hidup fauna akuatik dan desain restorasi mangrove terpadu seperti apa yang mampu memulihkan keanekaragaman hayati?',
-                image_url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800'
-              }
-            ]);
           }
         }
 
         // Fetch existing group solution draft
         const solRes = await request.get(API_ENDPOINTS.GROUPS.SOLUTION(groupId));
         if (solRes?.success && solRes.data) {
-          setProblemData({
-            identifiedProblem: solRes.data.problem_analysis || '',
-            facts: solRes.data.facts_identified || '',
-            knowledgeGaps: solRes.data.inquiry_questions || '',
-            researchQuestion: solRes.data.chosen_solution || ''
-          });
+          if (Array.isArray(solRes.data.answers) && solRes.data.answers.length > 0) {
+            setAnswers(solRes.data.answers);
+          } else {
+            const fallbackAnswers = [];
+            if (solRes.data.problem_analysis) fallbackAnswers.push(solRes.data.problem_analysis);
+            if (solRes.data.facts_identified) fallbackAnswers.push(solRes.data.facts_identified);
+            if (solRes.data.inquiry_questions) fallbackAnswers.push(solRes.data.inquiry_questions);
+            setAnswers(fallbackAnswers);
+          }
         }
       } catch (err) {
         console.error('Failed to load Stage 2 data from server:', err);
@@ -80,27 +52,53 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
     fetchData();
   }, [stage, stageId, groupId]);
 
-  const handleChange = (field, value) => {
-    setProblemData(prev => ({ ...prev, [field]: value }));
+  const activeProblem = problems[selectedProblemIndex] || problems[0];
+
+  // Helper to get questions for active problem (no default fallback if empty)
+  const getActiveQuestions = () => {
+    if (!activeProblem) return [];
+    if (activeProblem.questions) {
+      try {
+        const parsed = typeof activeProblem.questions === 'string' ? JSON.parse(activeProblem.questions) : activeProblem.questions;
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch { }
+    }
+    return [];
+  };
+
+  const currentQuestions = getActiveQuestions();
+
+  const handleAnswerChange = (index, value) => {
+    setAnswers(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (currentQuestions.length === 0) {
+      toast.error('Belum ada pertanyaan yang dapat disimpan.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const activeProblem = problems[selectedProblemIndex] || problems[0];
       const res = await request.post(API_ENDPOINTS.GROUPS.SOLUTION(groupId), {
         problem_id: activeProblem?.id || 1,
-        problem_analysis: problemData.identifiedProblem,
-        facts_identified: problemData.facts,
-        inquiry_questions: problemData.knowledgeGaps,
-        chosen_solution: problemData.researchQuestion,
+        problem_analysis: answers[0] || '',
+        facts_identified: answers[1] || '',
+        inquiry_questions: answers[2] || '',
+        answers: answers,
         status: 'draft'
       });
 
       if (res.success) {
         setLastSaved(`Tersimpan di server ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-        toast.success('Analisis Problem Orientation berhasil disimpan ke server!');
+        toast.success('Jawaban analisis Problem Orientation berhasil disimpan ke server!');
         if (onComplete) onComplete();
       }
     } catch (err) {
@@ -110,7 +108,14 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
     }
   };
 
-  const activeProblem = problems[selectedProblemIndex] || problems[0];
+  if (loading) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm flex flex-col items-center justify-center gap-3">
+        <Loader2 className="animate-spin text-emerald-600" size={32} />
+        <p className="text-xs font-bold text-slate-500">Memuat lembar studi kasus orientasi masalah...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -124,30 +129,32 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
           Problem Orientation: Orientasi & Identifikasi Masalah
         </h2>
         <p className="text-xs sm:text-sm text-emerald-100 mt-2 max-w-2xl leading-relaxed">
-          Guru menyajikan 3 studi kasus lingkungan biologi di bawah ini. Pilih dan telaah permasalahan kontekstual, analisis fakta-fakta saintifik, dan rumuskan pertanyaan investigasi bersama kelompok.
+          Guru menyajikan studi kasus lingkungan biologi di bawah ini. Pilih dan telaah permasalahan kontekstual, analisis fakta-fakta saintifik, dan jawab pertanyaan investigasi yang diberikan oleh guru bersama kelompok.
         </p>
       </div>
 
       {/* Case Switcher Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {problems.map((p, idx) => (
-          <button
-            key={p.id || idx}
-            onClick={() => setSelectedProblemIndex(idx)}
-            className={`px-4 py-2.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-              selectedProblemIndex === idx
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <BookOpen size={15} />
-            <span>Kasus {idx + 1}: {p.title.split(':')[1]?.slice(0, 30) || `Permasalahan ${idx + 1}`}...</span>
-          </button>
-        ))}
-      </div>
+      {problems.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {problems.map((p, idx) => (
+            <button
+              key={p.id || idx}
+              onClick={() => setSelectedProblemIndex(idx)}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+                selectedProblemIndex === idx
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <BookOpen size={15} />
+              <span>Kasus {idx + 1}: {p.title?.split(':')[1]?.slice(0, 30) || p.title?.slice(0, 30) || `Kasus ${idx + 1}`}...</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Studi Kasus Biologi Aktif */}
-      {activeProblem && (
+      {activeProblem ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-sm">
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="lg:w-1/3 w-full rounded-2xl overflow-hidden shadow-sm border border-slate-200 shrink-0">
@@ -187,82 +194,83 @@ export const Stage2ProblemOrientation = ({ stage, onComplete }) => {
             </div>
           </div>
         </div>
+      ) : (
+        <div className="p-8 text-center bg-white border border-slate-200 rounded-3xl space-y-2">
+          <AlertCircle size={28} className="text-slate-400 mx-auto" />
+          <h4 className="text-sm font-bold text-slate-800">Belum Ada Kasus Masalah</h4>
+          <p className="text-xs text-slate-500">Guru belum menambahkan kasus masalah PBL untuk tahapan ini.</p>
+        </div>
       )}
 
       {/* Lembar Kerja Siswa Sintaks 2 */}
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-extrabold text-slate-800">Lembar Identifikasi & Rumusan Masalah</h3>
-            <p className="text-xs text-slate-400">Isi analisis Anda secara cermat. Data disimpan secara otomatis.</p>
+            <h3 className="text-base font-extrabold text-slate-800">Lembar Jawaban & Analisis Masalah Siswa</h3>
+            <p className="text-xs text-slate-400">Jawab pertanyaan-pertanyaan investigasi berikut sesuai arahan guru.</p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-            {isSaving ? (
-              <span className="animate-pulse">Menyimpan...</span>
-            ) : (
-              <>
-                <CheckCircle2 size={14} />
-                <span>{lastSaved}</span>
-              </>
-            )}
+          {currentQuestions.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+              {isSaving ? (
+                <span className="animate-pulse">Menyimpan...</span>
+              ) : (
+                <>
+                  <CheckCircle2 size={14} />
+                  <span>{lastSaved}</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Dynamic Questions Form Fields or Empty Alert */}
+        {currentQuestions.length > 0 ? (
+          <div className="space-y-5">
+            {currentQuestions.map((questionText, idx) => (
+              <div key={idx} className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-start gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <span className="flex-1 leading-relaxed text-slate-800 font-bold">
+                    {questionText.replace(/^\d+\.\s*/, '')} <span className="text-rose-500">*</span>
+                  </span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={answers[idx] || ''}
+                  onChange={(e) => handleAnswerChange(idx, e.target.value)}
+                  placeholder={`Tuliskan analisis & penjelasan jawaban kelompok untuk pertanyaan #${idx + 1}...`}
+                  className="w-full p-4 rounded-2xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium placeholder-slate-400 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  required
+                />
+              </div>
+            ))}
           </div>
-        </div>
+        ) : (
+          <div className="p-8 text-center bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 mx-auto flex items-center justify-center">
+              <AlertCircle size={24} />
+            </div>
+            <h4 className="text-sm font-extrabold text-amber-950">Belum Ada Pertanyaan Lembar Kerja</h4>
+            <p className="text-xs text-amber-800 max-w-md mx-auto leading-relaxed">
+              Guru belum menambahkan pertanyaan lembar kerja untuk studi kasus ini. Silakan berdiskusi dengan guru atau tunggu guru menambahkan pertanyaan tugas.
+            </p>
+          </div>
+        )}
 
-        {/* 1. Identifikasi Masalah Utama */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-            1. Apa Permasalahan Utama yang Ditemukan? <span className="text-rose-500">*</span>
-          </label>
-          <textarea
-            rows={3}
-            value={problemData.identifiedProblem}
-            onChange={(e) => handleChange('identifiedProblem', e.target.value)}
-            placeholder="Tuliskan analisis permasalahan ekosistem dan dampak biologi yang terjadi..."
-            className="w-full p-4 rounded-2xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium placeholder-slate-400 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-            required
-          />
-        </div>
-
-        {/* 2. Fakta-fakta Lapangan */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-            2. Fakta-fakta Saintifik & Data Lapangan yang Teridentifikasi <span className="text-rose-500">*</span>
-          </label>
-          <textarea
-            rows={3}
-            value={problemData.facts}
-            onChange={(e) => handleChange('facts', e.target.value)}
-            placeholder="Contoh: 1. Kadar DO turun di bawah 2 mg/L. 2. Blooming eceng gondok menghalangi sinar matahari..."
-            className="w-full p-4 rounded-2xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium placeholder-slate-400 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-            required
-          />
-        </div>
-
-        {/* 3. Pertanyaan Investigasi Inkuiri */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-            3. Rumusan Pertanyaan Investigasi / Ruang Lingkup Masalah <span className="text-rose-500">*</span>
-          </label>
-          <textarea
-            rows={3}
-            value={problemData.knowledgeGaps}
-            onChange={(e) => handleChange('knowledgeGaps', e.target.value)}
-            placeholder="Rumuskan pertanyaan penting yang akan diselidiki bersama kelompok di Sintaks 3..."
-            className="w-full p-4 rounded-2xl bg-white border border-slate-300 text-xs sm:text-sm text-slate-900 font-medium placeholder-slate-400 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-            required
-          />
-        </div>
-
-        <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-          >
-            <Save size={16} />
-            <span>{isSaving ? 'Menyimpan...' : 'Simpan Analisis Sintaks 2'}</span>
-          </button>
-        </div>
+        {currentQuestions.length > 0 && (
+          <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Save size={16} />
+              <span>{isSaving ? 'Menyimpan...' : 'Simpan Analisis Sintaks 2'}</span>
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

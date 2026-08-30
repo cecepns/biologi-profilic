@@ -178,6 +178,8 @@ app.post('/api/auth/login', async (req, res) => {
         username: user.username,
         role: user.role,
         avatar: user.avatar,
+        phone: user.phone || null,
+        bio: user.bio || null,
         nis: user.nis || null,
         studentId: user.student_id || null,
         groupId: user.group_id || 1,
@@ -188,6 +190,98 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/auth/profile', async (req, res) => {
+  try {
+    const userId = parseInt(req.query.userId || req.query.id, 10) || 1;
+    const [users] = await pool.query(
+      `SELECT u.id, u.name, u.username, u.role, u.avatar, u.status, u.phone, u.bio,
+              s.id as student_id, s.nis, s.class_id, c.name as class_name,
+              t.id as teacher_id, t.nip, t.specialization,
+              sg.id as group_id, sg.name as group_name
+       FROM users u 
+       LEFT JOIN students s ON s.user_id = u.id 
+       LEFT JOIN classes c ON c.id = s.class_id 
+       LEFT JOIN teachers t ON t.user_id = u.id 
+       LEFT JOIN group_members gm ON gm.student_id = s.id 
+       LEFT JOIN student_groups sg ON sg.id = gm.group_id 
+       WHERE u.id = ? LIMIT 1`,
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'Data profil pengguna tidak ditemukan.' });
+    }
+
+    res.json({ success: true, data: users[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/auth/profile', upload.single('file'), async (req, res) => {
+  try {
+    const { id, userId: reqUserId, name, phone, bio, password, nis, nip } = req.body;
+    const userId = parseInt(id || reqUserId, 10);
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID tidak valid.' });
+    }
+
+    const avatar = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.avatar;
+
+    const [existing] = await pool.query(`SELECT * FROM users WHERE id = ?`, [userId]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan.' });
+    }
+
+    const updateFields = [];
+    const params = [];
+    if (name !== undefined) { updateFields.push('name = ?'); params.push(name); }
+    if (phone !== undefined) { updateFields.push('phone = ?'); params.push(phone); }
+    if (bio !== undefined) { updateFields.push('bio = ?'); params.push(bio); }
+    if (avatar !== undefined) { updateFields.push('avatar = ?'); params.push(avatar || null); }
+    if (password && password.trim()) {
+      const hashedPassword = await bcrypt.hash(password.trim(), 10);
+      updateFields.push('password = ?');
+      params.push(hashedPassword);
+    }
+
+    if (updateFields.length > 0) {
+      params.push(userId);
+      await pool.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, params);
+    }
+
+    if (nis !== undefined) {
+      await pool.query(`UPDATE students SET nis = ? WHERE user_id = ?`, [nis, userId]);
+    }
+    if (nip !== undefined) {
+      await pool.query(`UPDATE teachers SET nip = ? WHERE user_id = ?`, [nip, userId]);
+    }
+
+    const [updated] = await pool.query(
+      `SELECT u.id, u.name, u.username, u.role, u.avatar, u.phone, u.bio,
+              s.id as student_id, s.nis, s.class_id, c.name as class_name,
+              t.id as teacher_id, t.nip, t.specialization,
+              sg.id as group_id, sg.name as group_name
+       FROM users u 
+       LEFT JOIN students s ON s.user_id = u.id 
+       LEFT JOIN classes c ON c.id = s.class_id 
+       LEFT JOIN teachers t ON t.user_id = u.id 
+       LEFT JOIN group_members gm ON gm.student_id = s.id 
+       LEFT JOIN student_groups sg ON sg.id = gm.group_id 
+       WHERE u.id = ? LIMIT 1`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Profil berhasil diperbarui.',
+      data: updated[0]
+    });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -848,7 +942,20 @@ app.get('/api/stages/:id', async (req, res) => {
 
     const stage = stages[0];
     const [materials] = await pool.query(`SELECT * FROM stage_materials WHERE stage_id = ?`, [id]);
-    const [problems] = await pool.query(`SELECT * FROM stage_problems WHERE stage_id = ?`, [id]);
+    const [rawProblems] = await pool.query(`SELECT * FROM stage_problems WHERE stage_id = ?`, [id]);
+
+    const problems = rawProblems.map(p => {
+      let questions = [];
+      if (p.questions) {
+        try {
+          const parsed = typeof p.questions === 'string' ? JSON.parse(p.questions) : p.questions;
+          if (Array.isArray(parsed)) {
+            questions = parsed;
+          }
+        } catch { }
+      }
+      return { ...p, questions };
+    });
 
     res.json({
       success: true,
@@ -888,22 +995,27 @@ app.post('/api/stages/:id/materials', upload.single('file'), async (req, res) =>
 app.post('/api/stages/:id/problems', upload.single('file'), async (req, res) => {
   try {
     const stageId = parseInt(req.params.id, 10);
-    const { title, context_story, trigger_question } = req.body;
+    const { title, context_story, trigger_question, questions } = req.body;
     if (!title || !context_story || !trigger_question) {
       return res.status(400).json({ success: false, message: 'Judul, cerita kasus, dan pertanyaan pemantik wajib diisi.' });
     }
     const image_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.image_url || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800';
 
+    let questionsString = null;
+    if (questions) {
+      questionsString = typeof questions === 'object' ? JSON.stringify(questions) : questions;
+    }
+
     const [result] = await pool.query(
-      `INSERT INTO stage_problems (stage_id, title, context_story, trigger_question, image_url) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [stageId, title, context_story, trigger_question, image_url]
+      `INSERT INTO stage_problems (stage_id, title, context_story, trigger_question, questions, image_url) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [stageId, title, context_story, trigger_question, questionsString, image_url]
     );
 
     res.status(201).json({
       success: true,
       message: 'Kasus masalah PBL berhasil ditambahkan ke Sintaks 2.',
-      data: { id: result.insertId, title, context_story, trigger_question, image_url }
+      data: { id: result.insertId, title, context_story, trigger_question, questions: questionsString ? JSON.parse(questionsString) : [], image_url }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -913,20 +1025,26 @@ app.post('/api/stages/:id/problems', upload.single('file'), async (req, res) => 
 app.put('/api/problems/:id', upload.single('file'), async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { title, context_story, trigger_question } = req.body;
+    const { title, context_story, trigger_question, questions } = req.body;
     const image_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.image_url || null;
 
     const [existing] = await pool.query(`SELECT * FROM stage_problems WHERE id = ?`, [id]);
     if (existing.length === 0) return res.status(404).json({ success: false, message: 'Kasus masalah tidak ditemukan.' });
+
+    let questionsString = undefined;
+    if (questions !== undefined) {
+      questionsString = typeof questions === 'object' ? JSON.stringify(questions) : questions;
+    }
 
     await pool.query(
       `UPDATE stage_problems SET 
         title = COALESCE(?, title),
         context_story = COALESCE(?, context_story),
         trigger_question = COALESCE(?, trigger_question),
+        questions = COALESCE(?, questions),
         image_url = COALESCE(?, image_url)
        WHERE id = ?`,
-      [title, context_story, trigger_question, image_url, id]
+      [title, context_story, trigger_question, questionsString, image_url, id]
     );
 
     res.json({ success: true, message: 'Kasus masalah PBL berhasil diperbarui.' });
@@ -1253,8 +1371,20 @@ app.get('/api/groups/:id/solution', async (req, res) => {
     const groupId = parseInt(req.params.id, 10);
     const [rows] = await pool.query(`SELECT * FROM group_solutions WHERE group_id = ? ORDER BY id DESC LIMIT 1`, [groupId]);
     let solution = rows.length > 0 ? rows[0] : null;
-    if (solution && typeof solution.solution_alternatives === 'string') {
-      try { solution.solution_alternatives = JSON.parse(solution.solution_alternatives); } catch { }
+    if (solution) {
+      if (typeof solution.solution_alternatives === 'string') {
+        try { solution.solution_alternatives = JSON.parse(solution.solution_alternatives); } catch { }
+      }
+      if (typeof solution.answers === 'string') {
+        try { solution.answers = JSON.parse(solution.answers); } catch { }
+      }
+      if (!solution.answers && (solution.problem_analysis || solution.facts_identified || solution.inquiry_questions)) {
+        solution.answers = [
+          solution.problem_analysis || '',
+          solution.facts_identified || '',
+          solution.inquiry_questions || ''
+        ];
+      }
     }
     res.json({ success: true, data: solution });
   } catch (error) {
@@ -1265,10 +1395,21 @@ app.get('/api/groups/:id/solution', async (req, res) => {
 app.post('/api/groups/:id/solution', upload.single('file'), async (req, res) => {
   try {
     const groupId = parseInt(req.params.id, 10);
-    const { problem_analysis, facts_identified, inquiry_questions, solution_alternatives, chosen_solution, solution_reasoning, status = 'submitted' } = req.body;
+    const { problem_id = 1, problem_analysis, facts_identified, inquiry_questions, answers, solution_alternatives, chosen_solution, solution_reasoning, status = 'submitted' } = req.body;
     const file_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.file_url || null;
 
     const alternativesString = typeof solution_alternatives === 'object' ? JSON.stringify(solution_alternatives) : solution_alternatives;
+    const answersString = answers ? (typeof answers === 'object' ? JSON.stringify(answers) : answers) : null;
+
+    let analysis = problem_analysis;
+    let facts = facts_identified;
+    let inq = inquiry_questions;
+
+    if (Array.isArray(answers)) {
+      if (!analysis) analysis = answers[0] || '';
+      if (!facts) facts = answers[1] || '';
+      if (!inq) inq = answers[2] || '';
+    }
 
     // Check if solution already exists
     const [existing] = await pool.query(`SELECT id FROM group_solutions WHERE group_id = ? LIMIT 1`, [groupId]);
@@ -1276,22 +1417,24 @@ app.post('/api/groups/:id/solution', upload.single('file'), async (req, res) => 
     if (existing.length > 0) {
       await pool.query(
         `UPDATE group_solutions SET 
+          problem_id = COALESCE(?, problem_id),
           problem_analysis = ?,
           facts_identified = ?,
           inquiry_questions = ?,
+          answers = ?,
           solution_alternatives = ?,
           chosen_solution = ?,
           solution_reasoning = ?,
           file_url = COALESCE(?, file_url),
           status = ?
          WHERE group_id = ?`,
-        [problem_analysis, facts_identified, inquiry_questions, alternativesString, chosen_solution, solution_reasoning, file_url, status, groupId]
+        [problem_id, analysis, facts, inq, answersString, alternativesString, chosen_solution, solution_reasoning, file_url, status, groupId]
       );
     } else {
       await pool.query(
-        `INSERT INTO group_solutions (group_id, problem_id, problem_analysis, facts_identified, inquiry_questions, solution_alternatives, chosen_solution, solution_reasoning, file_url, status) 
-         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [groupId, problem_analysis, facts_identified, inquiry_questions, alternativesString, chosen_solution, solution_reasoning, file_url, status]
+        `INSERT INTO group_solutions (group_id, problem_id, problem_analysis, facts_identified, inquiry_questions, answers, solution_alternatives, chosen_solution, solution_reasoning, file_url, status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [groupId, problem_id, analysis, facts, inq, answersString, alternativesString, chosen_solution, solution_reasoning, file_url, status]
       );
     }
 
@@ -1393,6 +1536,54 @@ app.post('/api/presentations/:id/grade', async (req, res) => {
     await pool.query(`UPDATE presentations SET status = 'graded' WHERE id = ?`, [presentationId]);
 
     res.json({ success: true, message: 'Nilai rubrik presentasi berhasil disimpan di database.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/presentations', upload.single('file'), async (req, res) => {
+  try {
+    const { stage_id = 4, group_id = 1, title, notes, embed_link, presentation_date } = req.body;
+    const slide_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : req.body.slide_url || null;
+
+    const [result] = await pool.query(
+      `INSERT INTO presentations (stage_id, group_id, title, slide_url, embed_link, notes, presentation_date, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
+      [stage_id, group_id, title || 'Presentasi Kelompok', slide_url, embed_link || null, notes || null, presentation_date || null]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Slide presentasi berhasil disimpan.',
+      data: { id: result.insertId, slide_url }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/presentations/:id', upload.single('file'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { title, notes, embed_link, slide_url: bodySlideUrl } = req.body;
+    const slide_url = req.file ? `/uploads-bioproflic/${req.file.filename}` : bodySlideUrl;
+
+    const [existing] = await pool.query(`SELECT id FROM presentations WHERE id = ?`, [id]);
+    if (existing.length === 0) return res.status(404).json({ success: false, message: 'Data presentasi tidak ditemukan.' });
+
+    const updateFields = [];
+    const params = [];
+    if (title !== undefined) { updateFields.push('title = ?'); params.push(title); }
+    if (notes !== undefined) { updateFields.push('notes = ?'); params.push(notes); }
+    if (embed_link !== undefined) { updateFields.push('embed_link = ?'); params.push(embed_link); }
+    if (slide_url !== undefined) { updateFields.push('slide_url = ?'); params.push(slide_url); }
+
+    if (updateFields.length > 0) {
+      params.push(id);
+      await pool.query(`UPDATE presentations SET ${updateFields.join(', ')} WHERE id = ?`, params);
+    }
+
+    res.json({ success: true, message: 'Slide presentasi berhasil diperbarui.', slide_url });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

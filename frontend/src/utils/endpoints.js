@@ -68,6 +68,7 @@ export const API_ENDPOINTS = {
   PRESENTATIONS: {
     LIST: "/presentations",
     CREATE: "/presentations",
+    UPDATE: (id) => `/presentations/${id}`,
     GRADE: (id) => `/presentations/${id}/grade`,
     FEEDBACKS: (id) => `/presentations/${id}/feedbacks`,
   },
