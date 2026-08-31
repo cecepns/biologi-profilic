@@ -76,8 +76,7 @@ export const AboutProFLiCModal = ({ isOpen, onClose }) => {
           </span>
           <h2 className="text-xl font-extrabold">Apa itu ProFLiC?</h2>
           <p className="text-xs sm:text-sm text-emerald-50 mt-2 leading-relaxed">
-            <strong>ProFLiC (Problem-Flipped-Collaborative Learning)</strong> adalah model pembelajaran biologi yang mengintegrasikan 
-            <em> Flipped Learning</em>, <em>Problem-Based Learning</em>, <em>Collaborative Learning</em>, dan <em>Metacognitive Reflection</em> untuk menumbuhkan keterampilan berpikir kritis, kolaborasi tim, dan penguasaan konsep biologi secara mendalam.
+            <strong>ProFliC</strong> adalah model pembelajaran inovatif yang mengintegrasikan <em>Problem-based Learning (PBL)</em>, <em>flipped classroom</em>, dan <em>collaborative learning</em> untuk mengembangkan keterampilan berpikir kritis, kreativitas, kolaborasi, komunikasi, dan penguasaan konsep Biologi peserta didik.
           </p>
         </div>
 

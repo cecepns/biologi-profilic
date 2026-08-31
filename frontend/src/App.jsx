@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
 import { BottomNav } from './components/common/BottomNav';
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 // Pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -66,60 +67,63 @@ export const App = () => {
   };
 
   return (
-    <Routes>
-      {/* Public Login Route */}
-      <Route
-        path="/login"
-        element={
-          isAuthenticated ? (
-            <Navigate to={getHomeRedirect()} replace />
-          ) : (
-            <LoginPage />
-          )
-        }
-      />
+    <>
+      <Routes>
+        {/* Public Login Route */}
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? (
+              <Navigate to={getHomeRedirect()} replace />
+            ) : (
+              <LoginPage />
+            )
+          }
+        />
 
-      {/* Authenticated Routes Branch */}
-      {isAuthenticated ? (
-        <Route element={<AuthenticatedLayout user={user} />}>
-          {/* Root path redirects to role dashboard */}
-          <Route path="/" element={<Navigate to={getHomeRedirect()} replace />} />
+        {/* Authenticated Routes Branch */}
+        {isAuthenticated ? (
+          <Route element={<AuthenticatedLayout user={user} />}>
+            {/* Root path redirects to role dashboard */}
+            <Route path="/" element={<Navigate to={getHomeRedirect()} replace />} />
 
-          {/* Student Routes */}
-          <Route path="/student/dashboard" element={<StudentDashboard />} />
-          <Route path="/student/projects" element={<StudentProjects />} />
-          <Route path="/student/projects/:id" element={<StudentProjectDetail />} />
-          <Route path="/student/projects/:id/stage/:stageNum" element={<StudentProjectDetail />} />
-          <Route path="/student/materials" element={<StudentMaterials />} />
-          <Route path="/student/discussion" element={<StudentDiscussion />} />
-          <Route path="/student/profile" element={<StudentProfile />} />
+            {/* Student Routes */}
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/projects" element={<StudentProjects />} />
+            <Route path="/student/projects/:id" element={<StudentProjectDetail />} />
+            <Route path="/student/projects/:id/stage/:stageNum" element={<StudentProjectDetail />} />
+            <Route path="/student/materials" element={<StudentMaterials />} />
+            <Route path="/student/discussion" element={<StudentDiscussion />} />
+            <Route path="/student/profile" element={<StudentProfile />} />
 
-          {/* Teacher Routes */}
-          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-          <Route path="/teacher/projects" element={<TeacherProjects />} />
-          <Route path="/teacher/materials" element={<TeacherMaterials />} />
-          <Route path="/teacher/discussions" element={<TeacherDiscussions />} />
-          <Route path="/teacher/classes" element={<TeacherClasses />} />
-          <Route path="/teacher/grading" element={<TeacherGradingCenter />} />
-          <Route path="/teacher/reports" element={<TeacherReports />} />
-          <Route path="/teacher/profile" element={<TeacherProfile />} />
+            {/* Teacher Routes */}
+            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+            <Route path="/teacher/projects" element={<TeacherProjects />} />
+            <Route path="/teacher/materials" element={<TeacherMaterials />} />
+            <Route path="/teacher/discussions" element={<TeacherDiscussions />} />
+            <Route path="/teacher/classes" element={<TeacherClasses />} />
+            <Route path="/teacher/grading" element={<TeacherGradingCenter />} />
+            <Route path="/teacher/reports" element={<TeacherReports />} />
+            <Route path="/teacher/profile" element={<TeacherProfile />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/classes" element={<AdminClasses />} />
-          <Route path="/admin/materials" element={<TeacherMaterials />} />
-          <Route path="/admin/discussions" element={<TeacherDiscussions />} />
-          <Route path="/admin/logs" element={<AdminAuditLogs />} />
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/classes" element={<AdminClasses />} />
+            <Route path="/admin/materials" element={<TeacherMaterials />} />
+            <Route path="/admin/discussions" element={<TeacherDiscussions />} />
+            <Route path="/admin/logs" element={<AdminAuditLogs />} />
 
-          {/* Fallback for any unknown route when logged in */}
-          <Route path="*" element={<Navigate to={getHomeRedirect()} replace />} />
-        </Route>
-      ) : (
-        /* Fallback for unauthenticated: all routes go directly to /login */
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      )}
-    </Routes>
+            {/* Fallback for any unknown route when logged in */}
+            <Route path="*" element={<Navigate to={getHomeRedirect()} replace />} />
+          </Route>
+        ) : (
+          /* Fallback for unauthenticated: all routes go directly to /login */
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        )}
+      </Routes>
+      <PwaInstallPrompt />
+    </>
   );
 };
 
